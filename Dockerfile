@@ -36,10 +36,6 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
 
 WORKDIR /root
 RUN git clone -b dev https://gitee.com/mindspore/mindformers.git \
-  && cd mindformers \
-  && git fetch https://gitee.com/mindspore/mindformers.git pull/5359/head:pr_5359 \
-  && git checkout pr_5359 \
-  && cd .. \
   && mkdir /home/work \
   && mv /root/mindformers /home/work \
   && ln -s /bin/python3 /bin/python \

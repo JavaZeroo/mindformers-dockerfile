@@ -45,7 +45,7 @@ RUN git clone -b dev https://gitee.com/mindspore/mindformers.git \
   && git checkout pr_2 \
   && pip install -r requirements.txt
 
-RUN rm -rf ~/.cache/pip /root/packages/* /var/lib/apt/lists/*
+RUN pip install openmind_hub && rm -rf ~/.cache/pip /root/packages/* /var/lib/apt/lists/*
 
 ARG LOCAL_ASCEND=/usr/local/Ascend
 RUN echo "ln -s /bin/python3 /bin/python" >> /root/.bashrc \
