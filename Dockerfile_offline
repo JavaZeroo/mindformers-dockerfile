@@ -12,19 +12,6 @@ RUN chmod 777 /tmp \
 
 # download and install cann
 WORKDIR /root/packages
-RUN wget http://localhost:8000/Python-3.11.9.tgz \
-  && tar -xvf Python-3.11.9.tgz \
-  && cd Python-3.11.9 \
-  && ./configure --enable-optimizations \
-  && make -j$(nproc) \
-  && make altinstall \
-  && cd .. \
-  && rm -rf Python-3.11.9 Python-3.11.9.tgz
-
-# 创建符号链接，确保 python3 和 pip 指向 Python 3.11
-RUN ln -sf /usr/local/bin/python3.11 /usr/bin/python3 \
-  && ln -sf /usr/local/bin/pip3.11 /usr/bin/pip
-
 ARG cann_toolkit='http://localhost:8000/Ascend-cann-toolkit_8.0.T63_linux-aarch64.run'
 ARG cann_kernels='http://localhost:8000/Ascend-cann-kernels-910b_8.0.T63_linux-aarch64.run'
 ARG cann_nnal='http://localhost:8000/Ascend-cann-nnal_8.0.T63_linux-aarch64.run'
@@ -49,13 +36,13 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
   && pip install sympy \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl \
-  && pip install https://repo.mindspore.cn/public/mindspore/mindspore/gate/20250208/liuxu195_81090_36045_20250208234215_39c1a52f3f970789633a37a3b0b249f46047f818/ascend/aarch64/mindspore-2.5.0-cp311-cp311-linux_aarch64.whl --trusted-host repo.mindspore.cn
+  && pip install https://repo.mindspore.cn/public/mindspore/mindspore/gate/20250208/liuxu195_81090_36043_20250208221212_39c1a52f3f970789633a37a3b0b249f46047f818/ascend/aarch64/mindspore-2.5.0-cp310-cp310-linux_aarch64.whl --trusted-host repo.mindspore.cn
 
 WORKDIR /root
 RUN git clone -b dev https://gitee.com/mindspore/mindformers.git \
   && cd mindformers \
-  && git fetch https://gitee.com/renyujin/mindformers_deepseek.git pull/6/head:pr_6 \
-  && git checkout pr_6 \
+  && git fetch https://gitee.com/renyujin/mindformers_deepseek.git pull/2/head:pr_2 \
+  && git checkout pr_2 \
   && pip install -r requirements.txt
 
 RUN rm -rf ~/.cache/pip /root/packages/* /var/lib/apt/lists/*

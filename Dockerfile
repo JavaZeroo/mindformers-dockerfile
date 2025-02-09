@@ -59,6 +59,7 @@ RUN echo "export GLOG_v=2" >> /root/.bashrc \
   && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
   && echo "source ${LOCAL_ASCEND}/mindie/set_env.sh" >> /root/.bashrc \
   && echo "export MINDIE_LLM_FRAMEWORK_BACKEND=MS" >> /root/.bashrc \
+  && echo "export MS_DEV_DYNAMIC_SINK1=False" >> /root/.bashrc \
   && echo "echo ''" >> /root/.bashrc \
   && echo "echo '   _____  .__            .______________                                       '" >> /root/.bashrc \
   && echo "echo '  /     \ |__| ____    __| _/\_   _____/__________  _____   ___________  ______'" >> /root/.bashrc \
