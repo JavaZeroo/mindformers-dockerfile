@@ -3,18 +3,17 @@ FROM ubuntu:arm_22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN chmod 777 /tmp \
-  && buildDeps='gcc g++ make vim curl zip net-tools iputils-ping iproute2 git python3-pip openssh-server tcl patch libnuma-dev flex autoconf automake libtool libssl-dev' \
+  && buildDeps='gcc g++ make vim wget curl zip net-tools iputils-ping iproute2 git python3-pip openssh-server tcl patch libnuma-dev flex autoconf automake libtool libssl-dev' \
   && apt-get update \
   && apt-get install -y $buildDeps \
   && git config --global http.sslverify false \
   && echo "check_certificate = off" >> ~/.wgetrc \
   && apt-get clean
 
-COPY ./packages /root/packages
-
-# 下载并安装 Python 3.11 源码
+# download and install cann
 WORKDIR /root/packages
-RUN tar -xvf Python-3.11.9.tgz \
+RUN wget http://localhost:8000/Python-3.11.9.tgz \
+  && tar -xvf Python-3.11.9.tgz \
   && cd Python-3.11.9 \
   && ./configure --enable-optimizations \
   && make -j$(nproc) \
@@ -25,34 +24,38 @@ RUN tar -xvf Python-3.11.9.tgz \
 # 创建符号链接，确保 python3 和 pip 指向 Python 3.11
 RUN ln -sf /usr/local/bin/python3.11 /usr/bin/python3 \
   && ln -sf /usr/local/bin/pip3.11 /usr/bin/pip
-# 安装 CANN 工具包
-WORKDIR /root/packages
-ARG cann_toolkit='Ascend-cann-toolkit_8.0.RC3_linux-aarch64.run'
-ARG cann_kernels='Ascend-cann-kernels-910b_8.0.RC3_linux-aarch64.run'
-ARG cann_nnal='cann-nnal.run'
-ARG ascend_mindie='ascend_mindie.run'
 
-RUN chmod +x ${cann_toolkit} && ./${cann_toolkit} --full --quiet
+ARG cann_toolkit='http://localhost:8000/Ascend-cann-toolkit_8.0.T63_linux-aarch64.run'
+ARG cann_kernels='http://localhost:8000/Ascend-cann-kernels-910b_8.0.T63_linux-aarch64.run'
+ARG cann_nnal='http://localhost:8000/Ascend-cann-nnal_8.0.T63_linux-aarch64.run'
+ARG ascend_mindie='http://localhost:8000/Ascend-mindie_1.0.T71_linux-aarch64.run'
+
+RUN wget -q ${cann_toolkit} -O cann-toolkit.run && chmod +x cann-toolkit.run && ./cann-toolkit.run --full --quiet && rm ./cann-toolkit.run
 RUN echo "export GLOG_v=2" >> /root/.bashrc \
   && echo "LOCAL_ASCEND=/usr/local/Ascend" >> /root/.bashrc \
   && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc
-RUN chmod +x ${cann_kernels} && ./${cann_kernels} --install --quiet
+
+RUN wget -q ${cann_kernels} -O cann-kernels.run && chmod +x cann-kernels.run && ./cann-kernels.run --install --quiet && rm ./cann-kernels.run
 RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh \
-  && chmod +x ${cann_nnal} && ./${cann_nnal} --install --quiet || cat /var/log/ascend_seclog/ascend_nnal_install.log \
-  && chmod +x ${ascend_mindie} && ./${ascend_mindie} --install --quiet
+  && wget -q ${cann_nnal} -O cann-nnal.run && chmod +x cann-nnal.run && ./cann-nnal.run --install --quiet || cat /var/log/ascend_seclog/ascend_nnal_install.log  && rm cann-nnal.run
 
+RUN cat /root/.bashrc
 
-# pip 安装过程
+RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && wget -q ${ascend_mindie} -O ascend_mindie.run && chmod +x ascend_mindie.run && ./ascend_mindie.run --install --quiet && rm ascend_mindie.run
+
+# pip install process
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
   && pip config set install.trusted-host mirrors.aliyun.com \
   && pip install sympy \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl \
-  && pip install https://repo.mindspore.cn/public/mindspore/mindspore/gate/20250207/zhengzuohe_81046_36006_20250207224653_8e9c022aea7d254ef956aa5d4ba35642beb60fd2/ascend/aarch64/mindspore-2.5.0-cp311-cp311-linux_aarch64.whl  --trusted-host ms-release.obs.cn-north-4.myhuaweicloud.com
+  && pip install https://repo.mindspore.cn/public/mindspore/mindspore/gate/20250208/liuxu195_81090_36045_20250208234215_39c1a52f3f970789633a37a3b0b249f46047f818/ascend/aarch64/mindspore-2.5.0-cp311-cp311-linux_aarch64.whl --trusted-host repo.mindspore.cn
 
 WORKDIR /root
 RUN git clone -b dev https://gitee.com/mindspore/mindformers.git \
   && cd mindformers \
+  && git fetch https://gitee.com/renyujin/mindformers_deepseek.git pull/6/head:pr_6 \
+  && git checkout pr_6 \
   && pip install -r requirements.txt
 
 RUN rm -rf ~/.cache/pip /root/packages/* /var/lib/apt/lists/*
@@ -74,4 +77,3 @@ RUN echo "ln -s /bin/python3 /bin/python" >> /root/.bashrc \
   && echo "echo ' \____|__  /__|___|  /\____ |  \___  / \____/|__|  |__|_|  /\___  >__|  /____  >'" >> /root/.bashrc \
   && echo "echo '        \/        \/      \/      \/                    \/     \/           \/ '" >> /root/.bashrc \
   && echo "echo ''" >> /root/.bashrc
-
