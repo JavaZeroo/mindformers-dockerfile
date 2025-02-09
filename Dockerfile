@@ -32,24 +32,28 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
   && pip install sympy \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl \
-  && pip install https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.4.0/MindSpore/unified/aarch64/mindspore-2.4.0-cp310-cp310-linux_aarch64.whl --trusted-host ms-release.obs.cn-north-4.myhuaweicloud.com
+  && pip install  https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.4.10/MindSpore/unified/aarch64/mindspore-2.4.10-cp310-cp310-linux_aarch64.whl --trusted-host ms-release.obs.cn-north-4.myhuaweicloud.com
 
 WORKDIR /root
-RUN git clone -b r1.3.0 https://gitee.com/mindspore/mindformers.git \
+RUN git clone -b dev https://gitee.com/mindspore/mindformers.git \
   && cd mindformers \
   && git fetch https://gitee.com/mindspore/mindformers.git pull/5359/head:pr_5359 \
   && git checkout pr_5359 \
-  && pip install -r requirements.txt \
-  && mkdir /home/work \
   && cd .. \
-  && mv /root/mindformers /home/work 
+  && mkdir /home/work \
+  && mv /root/mindformers /home/work \
+  && ln -s /bin/python3 /bin/python \
+  && cd /home/work/mindformers \
+  && sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh \
+  && bash build.sh \
+  && pip install pybind11 \
+  && cd mindformers/dataset/blended_datasets \
+  && make 
 
 RUN rm -rf ~/.cache/pip /root/packages/* /var/lib/apt/lists/*
 
 ARG LOCAL_ASCEND=/usr/local/Ascend
-RUN echo "ln -s /bin/python3 /bin/python" >> /root/.bashrc \
-  && echo "alias pip=pip3" >> /root/.bashrc \
-  && echo "export GLOG_v=2" >> /root/.bashrc \
+RUN echo "export GLOG_v=2" >> /root/.bashrc \
   && echo "export LD_LIBRARY_PATH=${LOCAL_ASCEND}/driver/lib64/common:${LOCAL_ASCEND}/driver/lib64/driver:${LD_LIBRARY_PATH}" >> /root/.bashrc \
   && echo "source ${LOCAL_ASCEND}/driver/bin/setenv.bash" >> /root/.bashrc \
   && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
