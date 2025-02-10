@@ -35,14 +35,15 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
   && pip config set install.trusted-host mirrors.aliyun.com \
   && pip install sympy \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl \
-  && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl \
-  && pip install https://repo.mindspore.cn/public/mindspore/mindspore/gate/20250208/liuxu195_81090_36043_20250208221212_39c1a52f3f970789633a37a3b0b249f46047f818/ascend/aarch64/mindspore-2.5.0-cp310-cp310-linux_aarch64.whl --trusted-host repo.mindspore.cn
+  && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl
+
+RUN pip install http://localhost:8000/mindspore-2.5.0-cp310-cp310-linux_aarch64.whl
 
 WORKDIR /root
-RUN git clone -b dev https://gitee.com/mindspore/mindformers.git \
-  && cd mindformers \
-  && git fetch https://gitee.com/renyujin/mindformers_deepseek.git pull/2/head:pr_2 \
-  && git checkout pr_2 \
+RUN git clone -b deepseek_v3_infer_v1.2 https://gitee.com/renyujin/mindformers_deepseek.git mindformers\
+  && mkdir /home/work \
+  && mv /root/mindformers /home/work \
+  && cd /home/work/mindformers \
   && pip install -r requirements.txt
 
 RUN pip install openmind_hub && rm -rf ~/.cache/pip /root/packages/* /var/lib/apt/lists/*
@@ -64,3 +65,20 @@ RUN echo "ln -s /bin/python3 /bin/python" >> /root/.bashrc \
   && echo "echo ' \____|__  /__|___|  /\____ |  \___  / \____/|__|  |__|_|  /\___  >__|  /____  >'" >> /root/.bashrc \
   && echo "echo '        \/        \/      \/      \/                    \/     \/           \/ '" >> /root/.bashrc \
   && echo "echo ''" >> /root/.bashrc
+
+RUN sed -i 's/"backendType" : "atb"/"backendType" : "ms"/; \
+s/"cacheBlockSize" : 128/"cacheBlockSize" : 16/; \
+s/"maxPrefillBatchSize" : 50,/"maxPrefillBatchSize" : 1,/; \
+s/"maxPrefillTokens" : 8192,/"maxPrefillTokens" : 1024,/; \
+s/"maxBatchSize" : 200,/"maxBatchSize" : 1,/; \
+s/"npuMemSize" : -1,/"npuMemSize" : 1,/; \
+s/"npuDeviceIds" : \[\[0,1,2,3\]\]/"npuDeviceIds" : [[0,1,2,3,4,5,6,7]]/; \
+s/"maxSeqLen" : 2560,/"maxSeqLen" : 2048,/; \
+s/"maxInputTokenLen" : 2048,/"maxInputTokenLen" : 1024,/; \
+s/"worldSize" : 4/"worldSize" : 8/' /usr/local/Ascend/mindie/latest/mindie-service/conf/config.json
+
+# 设置字符编码环境变量
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+ENV PYTHONIOENCODING=utf-8
