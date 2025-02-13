@@ -14,7 +14,7 @@ RUN chmod 777 /tmp \
 WORKDIR /root/packages
 ARG cann_toolkit='http://localhost:8000/Ascend-cann-toolkit_8.0.T63_linux-aarch64.run'
 ARG cann_kernels='http://localhost:8000/Ascend-cann-kernels-910b_8.0.T63_linux-aarch64.run'
-ARG cann_nnal='http://localhost:8000/Ascend-cann-nnal_8.0.T63_linux-aarch64.run'
+# ARG cann_nnal='http://localhost:8000/Ascend-cann-nnal_8.0.T63_linux-aarch64.run'
 ARG ascend_mindie='http://localhost:8000/Ascend-mindie_1.0.T71_linux-aarch64.run'
 
 RUN wget -q ${cann_toolkit} -O cann-toolkit.run && chmod +x cann-toolkit.run && ./cann-toolkit.run --full --quiet && rm ./cann-toolkit.run
@@ -23,8 +23,8 @@ RUN echo "export GLOG_v=2" >> /root/.bashrc \
   && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc
 
 RUN wget -q ${cann_kernels} -O cann-kernels.run && chmod +x cann-kernels.run && ./cann-kernels.run --install --quiet && rm ./cann-kernels.run
-RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh \
-  && wget -q ${cann_nnal} -O cann-nnal.run && chmod +x cann-nnal.run && ./cann-nnal.run --install --quiet || cat /var/log/ascend_seclog/ascend_nnal_install.log  && rm cann-nnal.run
+# RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh \
+  # && wget -q ${cann_nnal} -O cann-nnal.run && chmod +x cann-nnal.run && ./cann-nnal.run --install --quiet || cat /var/log/ascend_seclog/ascend_nnal_install.log  && rm cann-nnal.run
 
 RUN cat /root/.bashrc
 
