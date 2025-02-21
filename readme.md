@@ -2,6 +2,8 @@
 
 ```bash
 docker build --network host -t swr.cn-central-221.ovaijisuan.com/mindformers/deepseek_v3_mindspore2.4.10-train:20250209 -f Dockerfile . && docker push swr.cn-central-221.ovaijisuan.com/mindformers/deepseek_v3_mindspore2.4.10-train:20250209
+
+docker build --network host -t swr.cn-central-221.ovaijisuan.com/mindformers/mindformers1.3_mindspore2.4:20250221 -f Dockerfile . && docker push swr.cn-central-221.ovaijisuan.com/mindformers/mindformers1.3_mindspore2.4:20250221 
 ```
 
 # infer 容器
