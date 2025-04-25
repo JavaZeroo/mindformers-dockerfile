@@ -1,1 +1,6 @@
 packages/
+*.tar
+*.gz
+*.whl
+*.xz
+.git

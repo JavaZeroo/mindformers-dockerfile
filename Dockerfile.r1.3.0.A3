@@ -1,0 +1,74 @@
+# base on ubuntu 22.04 arm
+FROM ubuntu:arm_22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN chmod 777 /tmp \
+  && buildDeps='gcc g++ make vim wget curl zip net-tools iputils-ping iproute2 git openssh-server tcl patch libnuma-dev flex autoconf automake libtool libssl-dev zlib1g-dev libffi-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev xz-utils tk-dev liblzma-dev python3-openssl lsof sshpass psmisc' \
+  && apt-get update \
+  && apt-get install -y $buildDeps \
+  && git config --global http.sslverify false \
+  && echo "check_certificate = off" >> ~/.wgetrc \
+  && apt-get clean
+
+RUN wget http://localhost:8000/Python-3.9.22.tgz && tar -xzf Python-3.9.22.tgz && cd Python-3.9.22 && ./configure --enable-optimizations --enable-loadable-sqlite-extensions && make -j128 && make install && python3.9 -V
+
+RUN ln -s /usr/local/bin/python3.9 /usr/bin/python
+
+RUN PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple wget http://localhost:8000/get-pip.py && \
+    python3.9 get-pip.py && \
+    rm get-pip.py
+
+# download and install cann
+WORKDIR /root/packages
+ARG cann_toolkit='http://localhost:8000/Ascend-cann-toolkit_8.0.RC3.20_linux-aarch64.run'
+ARG cann_kernels='http://localhost:8000/Atlas-A3-cann-kernels_8.0.RC3.20_linux-aarch64.run'
+ARG cann_nnal='http://localhost:8000/Ascend-cann-nnal_8.0.RC3.20_linux-aarch64.run'
+# ARG ascend_mindie='http://localhost:8000/Ascend-mindie_1.0.0_linux-aarch64.run'
+
+RUN wget -q ${cann_toolkit} -O cann-toolkit.run && chmod +x cann-toolkit.run && ./cann-toolkit.run --install --quiet &&  rm ./cann-toolkit.run
+RUN echo "export GLOG_v=2" >> /root/.bashrc \
+  && echo "LOCAL_ASCEND=/usr/local/Ascend" >> /root/.bashrc \
+  && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc
+RUN wget -q ${cann_kernels} -O cann-kernels.run && chmod +x cann-kernels.run && ./cann-kernels.run --install --quiet && rm ./cann-kernels.run
+RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh \
+  && wget -q ${cann_nnal} -O cann-nnal.run && chmod +x cann-nnal.run && ./cann-nnal.run --install --quiet && rm cann-nnal.run
+  # && wget -q ${ascend_mindie} -O ascend_mindie.run && chmod +x ascend_mindie.run && ./ascend_mindie.run --install --quiet
+
+# pip install process
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
+  && pip config set install.trusted-host mirrors.aliyun.com \
+  && pip install sympy \
+  && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl \
+  && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl \
+  && pip install  http://localhost:8000/mindspore-2.6.0-cp39-cp39-linux_aarch64.whl
+
+WORKDIR /root
+RUN git clone -b dev https://gitee.com/xb9919/mindformers.git \
+  && cd mindformers \
+  && sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh \
+  && bash build.sh \
+  && pip install pybind11 \
+  && cd mindformers/dataset/blended_datasets \
+  && make 
+
+RUN rm -rf ~/.cache/pip /root/packages/* /var/lib/apt/lists/*
+
+ARG LOCAL_ASCEND=/usr/local/Ascend
+RUN echo "export GLOG_v=2" >> /root/.bashrc \
+  && echo "export LD_LIBRARY_PATH=${LOCAL_ASCEND}/driver/lib64/common:${LOCAL_ASCEND}/driver/lib64/driver:${LD_LIBRARY_PATH}" >> /root/.bashrc \
+  && echo "source ${LOCAL_ASCEND}/driver/bin/setenv.bash" >> /root/.bashrc \
+  && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
+  && echo "source ${LOCAL_ASCEND}/nnal/atb/set_env.sh" >> /root/.bashrc \
+  # && echo "source ${LOCAL_ASCEND}/mindie/set_env.sh" >> /root/.bashrc \
+  # && echo "export MINDIE_LLM_FRAMEWORK_BACKEND=MS" >> /root/.bashrc \
+  # && echo "export MS_DEV_DYNAMIC_SINK1=False" >> /root/.bashrc \
+  && echo "echo ''" >> /root/.bashrc \
+  && echo "echo '   _____  .__            .______________                                       '" >> /root/.bashrc \
+  && echo "echo '  /     \ |__| ____    __| _/\_   _____/__________  _____   ___________  ______'" >> /root/.bashrc \
+  && echo "echo ' /  \ /  \|  |/    \  / __ |  |    __)/  _ \_  __ \/     \_/ __ \_  __ \/  ___/'" >> /root/.bashrc \
+  && echo "echo '/    Y    \  |   |  \/ /_/ |  |     \(  <_> )  | \/  Y Y  \  ___/|  | \/\___ \ '" >> /root/.bashrc \
+  && echo "echo ' \____|__  /__|___|  /\____ |  \___  / \____/|__|  |__|_|  /\___  >__|  /____  >'" >> /root/.bashrc \
+  && echo "echo '        \/        \/      \/      \/                    \/     \/           \/ '" >> /root/.bashrc \
+  && echo "echo ''" >> /root/.bashrc
+
+RUN wget https://www.mpich.org/static/downloads/3.2.1/mpich-3.2.1.tar.gz && tar -zxvf mpich-3.2.1.tar.gz && cd mpich-3.2.1 && ./configure --disable-fortran --prefix=/usr/local/mpich && make && make install
