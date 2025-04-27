@@ -225,4 +225,4 @@ RUN echo "export GLOG_v=2" >> /root/.bashrc \
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' > /etc/timezone
 # 设置语言环境
-ENV LANG=C.UTF-8, LC_ALL=C.UTF-8, PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8
