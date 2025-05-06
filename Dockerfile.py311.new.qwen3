@@ -75,12 +75,10 @@ RUN ARCH=$(case "${TARGETPLATFORM}" in \
         "linux/arm64") echo "aarch64" ;; \
         *) echo "Unsupported TARGETPLATFORM: ${TARGETPLATFORM}" && exit 1 ;; \
     esac) && \
-    CANN_TOOLKIT_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/Milan-ASL/Milan-ASL%20V100R001C21B800TP051/Ascend-cann-toolkit_8.1.RC1.alpha002_linux-${ARCH}.run && \
-    CANN_KERNELS_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/Milan-ASL/Milan-ASL%20V100R001C21B800TP051/Ascend-cann-kernels-910b_8.1.RC1.alpha002_linux-${ARCH}.run && \
-    CANN_NNAL_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.0.0/Ascend-cann-nnal_8.0.0_linux-${ARCH}.run && \
+    CANN_KERNELS_URL=http://localhost:8000/Ascend-cann-kernels-910b_8.1.T17_linux-aarch64.run && \
+    CANN_TOOLKIT_URL=http://localhost:8000/Ascend-cann-toolkit_8.1.T17_linux-aarch64.run && \
     wget ${CANN_TOOLKIT_URL} -O ~/Ascend-cann-toolkit.run && \
-    wget ${CANN_KERNELS_URL} -O ~/Ascend-cann-kernels.run 
-    # wget ${CANN_NNAL_URL} -O ~/Ascend-cann-nnal.run
+    wget ${CANN_KERNELS_URL} -O ~/Ascend-cann-kernels.run
 
 # Note: install CANN Toolkit Development Kit Package
 RUN chmod +x ~/Ascend-cann-toolkit.run && \
@@ -178,6 +176,11 @@ RUN buildDeps='gcc g++ make vim  curl zip net-tools iputils-ping iproute2 git op
   && echo "check_certificate = off" >> ~/.wgetrc \
   && apt-get clean
 
+# download and install cann
+# WORKDIR /root/packages
+# ARG ascend_mindie='http://localhost:8000/Ascend-mindie_1.0.0_linux-aarch64.run'
+# RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh \
+#   && wget -q ${ascend_mindie} -O ascend_mindie.run && chmod +x ascend_mindie.run && ./ascend_mindie.run --install --quiet
 
 
 # pip install process
@@ -186,11 +189,14 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
   && pip install sympy \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl \
   && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl \
-  && pip install https://repo.mindspore.cn/mindspore/mindspore/version/202504/20250424/r2.6_20250424024507_3ae5f8d613c5be742ec485d2c89ec96b72821a98/unified/aarch64/mindspore-2.6.0rc1-cp311-cp311-linux_aarch64.whl --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
+  # && pip install https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.5.0/MindSpore/unified/aarch64/mindspore-2.5.0-cp311-cp311-linux_aarch64.whl --trusted-host ms-release.obs.cn-north-4.myhuaweicloud.com && rm -rf ~/.cache/pip
+  && pip install https://repo.mindspore.cn/mindspore/mindspore/version/202504/20250428/master_20250428093516_7e435fc7566696fc1c552a4913567c925c9b7a9a_newest/unified/aarch64/mindspore-2.6.0-cp311-cp311-linux_aarch64.whl --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
 
 WORKDIR /home/work
-RUN git clone -b dev https://gitee.com/mindspore/mindformers.git \
+RUN git clone -b r1.5.0 https://gitee.com/mindspore/mindformers.git \
   && cd mindformers \
+  && git fetch https://gitee.com/mindspore/mindformers.git pull/6112/head:pr_6112 \
+  && git checkout pr_6112 \
   && git show \
   && sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh \
   && bash build.sh \
@@ -204,7 +210,7 @@ ARG LOCAL_ASCEND=/usr/local/Ascend
 RUN echo "export GLOG_v=2" >> /root/.bashrc \
 #   && echo "export LD_LIBRARY_PATH=${LOCAL_ASCEND}/driver/lib64/common:${LOCAL_ASCEND}/driver/lib64/driver:${LD_LIBRARY_PATH}" >> /root/.bashrc \
 #   && echo "source ${LOCAL_ASCEND}/driver/bin/setenv.bash" >> /root/.bashrc \
-  && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
+#   && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
 #   && echo "source ${LOCAL_ASCEND}/mindie/set_env.sh" >> /root/.bashrc \
 #   && echo "export MINDIE_LLM_FRAMEWORK_BACKEND=MS" >> /root/.bashrc \
   && echo "echo ''" >> /root/.bashrc \
