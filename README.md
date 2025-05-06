@@ -1,3 +1,7 @@
+# Docker 版本
+
+`Docker version 26.1.4, build 5650f9b`
+
 # 构建镜像
 
 ```bash
