@@ -1,0 +1,223 @@
+# Stage 1: Install Python
+FROM ubuntu:24.04 AS python-installer
+
+# Python Environment variables
+ENV PATH=/usr/local/python3.11.4/bin:${PATH}
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+        apt-transport-https \
+        ca-certificates \
+        bash \
+        curl \
+        build-essential \
+        libssl-dev \
+        zlib1g-dev \
+        libncurses5-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        libffi-dev \
+        libnss3-dev \
+        libgdbm-dev \
+        liblzma-dev \
+        libev-dev \
+        wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/tmp/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin
+
+WORKDIR /tmp
+
+# Install Python
+RUN wget -q https://repo.huaweicloud.com/python/3.11.4/Python-3.11.4.tgz -O /tmp/Python-3.11.4.tgz && \
+    tar -xf /tmp/Python-3.11.4.tgz -C /tmp && \
+    cd /tmp/Python-3.11.4 && \
+    mkdir -p /usr/local/python3.11.4/lib && \
+    ./configure --enable-shared --enable-shared LDFLAGS="-Wl,-rpath /usr/local/python3.11.4/lib" --prefix=/usr/local/python3.11.4 --enable-optimizations --enable-loadable-sqlite-extensions && \
+    make -j $(nproc) && \
+    make altinstall && \
+    ln -sf /usr/local/python3.11.4/bin/python3.11 /usr/local/python3.11.4/bin/python3 && \
+    ln -sf /usr/local/python3.11.4/bin/pip3.11 /usr/local/python3.11.4/bin/pip3 && \
+    ln -sf /usr/local/python3.11.4/bin/python3 /usr/local/python3.11.4/bin/python && \
+    ln -sf /usr/local/python3.11.4/bin/pip3 /usr/local/python3.11.4/bin/pip && \
+    rm -rf /tmp/*
+
+# Stage 2: Install CANN
+FROM python-installer AS cann-installer
+
+ARG TARGETPLATFORM
+ARG INSTALL_NNAL=false
+
+RUN apt-get update && apt-get install --no-install-recommends -y \
+        git \
+        wget \
+        gcc \
+        g++ \
+        make \
+        cmake \
+        zlib1g \
+        openssl \
+        unzip \
+        pciutils \
+        net-tools \
+        libblas-dev \
+        gfortran \
+        patchelf \
+        libblas3 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Note: Get the download link according to ARCH and download the installation package
+RUN ARCH=$(case "${TARGETPLATFORM}" in \
+        "linux/amd64") echo "x86_64" ;; \
+        "linux/arm64") echo "aarch64" ;; \
+        *) echo "Unsupported TARGETPLATFORM: ${TARGETPLATFORM}" && exit 1 ;; \
+    esac) && \
+    CANN_TOOLKIT_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.1.RC1/Ascend-cann-toolkit_8.1.RC1_linux-${ARCH}.run && \
+    CANN_KERNELS_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.1.RC1/Ascend-cann-kernels-910b_8.1.RC1_linux-${ARCH}.run && \
+    CANN_NNAL_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.1.RC1/Ascend-cann-nnal_8.1.RC1_linux-${ARCH}.run && \
+    wget ${CANN_TOOLKIT_URL} -O ~/Ascend-cann-toolkit.run && \
+    wget ${CANN_KERNELS_URL} -O ~/Ascend-cann-kernels.run && \
+    if [ "${INSTALL_NNAL}" = "true" ]; then \
+        wget ${CANN_NNAL_URL} -O ~/Ascend-cann-nnal.run; \
+    fi
+
+# Note: install CANN Toolkit Development Kit Package
+RUN chmod +x ~/Ascend-cann-toolkit.run && \
+    ~/Ascend-cann-toolkit.run --quiet --install --install-for-all && \
+    rm -f ~/Ascend-cann-toolkit.run
+
+# Note: install CANN Kernels Operator Package
+RUN chmod +x ~/Ascend-cann-kernels.run && \
+    ~/Ascend-cann-kernels.run --quiet --install --install-for-all && \
+    rm -f ~/Ascend-cann-kernels.run
+
+# Note: install CANN NNAL Neural Network Acceleration Library if enabled
+RUN if [ "${INSTALL_NNAL}" = "true" ]; then \
+        . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
+        chmod +x ~/Ascend-cann-nnal.run && \
+        ~/Ascend-cann-nnal.run --quiet --install --install-for-all && \
+        rm -f ~/Ascend-cann-nnal.run; \
+    fi
+
+# Stage 3: Copy results from previous stages
+FROM ubuntu:24.04 AS official-ubuntu
+
+# Python Environment variables
+ENV PATH=/usr/local/python3.11.4/bin:${PATH}
+
+# Note: Toolkit Environment variables, obtained from /usr/local/Ascend/ascend-toolkit/set_env.sh
+ENV ASCEND_TOOLKIT_HOME=/usr/local/Ascend/ascend-toolkit/latest
+ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/common/:/usr/local/Ascend/driver/lib64/driver/:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/lib64:${ASCEND_TOOLKIT_HOME}/lib64/plugin/opskernel:${ASCEND_TOOLKIT_HOME}/lib64/plugin/nnengine:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe/op_tiling:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/tools/aml/lib64:${ASCEND_TOOLKIT_HOME}/tools/aml/lib64/plugin:$LD_LIBRARY_PATH
+ENV PYTHONPATH=${ASCEND_TOOLKIT_HOME}/python/site-packages:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe:$PYTHONPATH
+ENV PATH=${ASCEND_TOOLKIT_HOME}/bin:${ASCEND_TOOLKIT_HOME}/compiler/ccec_compiler/bin:${ASCEND_TOOLKIT_HOME}/tools/ccec_compiler/bin:$PATH
+ENV ASCEND_AICPU_PATH=${ASCEND_TOOLKIT_HOME}
+ENV ASCEND_OPP_PATH=${ASCEND_TOOLKIT_HOME}/opp
+ENV TOOLCHAIN_HOME=${ASCEND_TOOLKIT_HOME}/toolkit
+ENV ASCEND_HOME_PATH=${ASCEND_TOOLKIT_HOME}
+
+# Note: NNAL Environment variables, only set if NNAL is installed
+ARG INSTALL_NNAL
+RUN if [ "${INSTALL_NNAL}" = "true" ]; then \
+        echo "export ATB_HOME_PATH=/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1" >> /root/.bashrc && \
+        echo "export LD_LIBRARY_PATH=\${ATB_HOME_PATH}/lib:\${ATB_HOME_PATH}/examples:\${ATB_HOME_PATH}/tests/atbopstest:\${LD_LIBRARY_PATH}" >> /root/.bashrc && \
+        echo "export PATH=\${ATB_HOME_PATH}/bin:\${PATH}" >> /root/.bashrc && \
+        echo "export ATB_STREAM_SYNC_EVERY_KERNEL_ENABLE=0" >> /root/.bashrc && \
+        echo "export ATB_STREAM_SYNC_EVERY_RUNNER_ENABLE=0" >> /root/.bashrc && \
+        echo "export ATB_STREAM_SYNC_EVERY_OPERATION_ENABLE=0" >> /root/.bashrc && \
+        echo "export ATB_OPSRUNNER_SETUP_CACHE_ENABLE=1" >> /root/.bashrc && \
+        echo "export ATB_OPSRUNNER_KERNEL_CACHE_TYPE=3" >> /root/.bashrc && \
+        echo "export ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT=1" >> /root/.bashrc && \
+        echo "export ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT=5" >> /root/.bashrc && \
+        echo "export ATB_OPSRUNNER_KERNEL_CACHE_TILING_SIZE=10240" >> /root/.bashrc && \
+        echo "export ATB_WORKSPACE_MEM_ALLOC_ALG_TYPE=1" >> /root/.bashrc && \
+        echo "export ATB_WORKSPACE_MEM_ALLOC_GLOBAL=0" >> /root/.bashrc && \
+        echo "export ATB_COMPARE_TILING_EVERY_KERNEL=0" >> /root/.bashrc && \
+        echo "export ATB_HOST_TILING_BUFFER_BLOCK_NUM=128" >> /root/.bashrc && \
+        echo "export ATB_DEVICE_TILING_BUFFER_BLOCK_NUM=32" >> /root/.bashrc && \
+        echo "export ATB_SHARE_MEMORY_NAME_SUFFIX=" >> /root/.bashrc && \
+        echo "export ATB_LAUNCH_KERNEL_WITH_TILING=1" >> /root/.bashrc && \
+        echo "export ATB_MATMUL_SHUFFLE_K_ENABLE=1" >> /root/.bashrc && \
+        echo "export ATB_RUNNER_POOL_SIZE=64" >> /root/.bashrc && \
+        echo "export ASDOPS_HOME_PATH=\${ATB_HOME_PATH}" >> /root/.bashrc && \
+        echo "export ASDOPS_MATMUL_PP_FLAG=1" >> /root/.bashrc && \
+        echo "export ASDOPS_LOG_LEVEL=ERROR" >> /root/.bashrc && \
+        echo "export ASDOPS_LOG_TO_STDOUT=0" >> /root/.bashrc && \
+        echo "export ASDOPS_LOG_TO_FILE=1" >> /root/.bashrc && \
+        echo "export ASDOPS_LOG_TO_FILE_FLUSH=0" >> /root/.bashrc && \
+        echo "export ASDOPS_LOG_TO_BOOST_TYPE=atb" >> /root/.bashrc && \
+        echo "export ASDOPS_LOG_PATH=/root" >> /root/.bashrc && \
+        echo "export ASDOPS_TILING_PARSE_CACHE_DISABLE=0" >> /root/.bashrc && \
+        echo "export LCCL_DETERMINISTIC=0" >> /root/.bashrc; \
+    fi
+
+SHELL [ "/bin/bash", "-c" ]
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+        apt-transport-https \
+        ca-certificates \
+        bash \
+        libc6 \
+        libsqlite3-dev \
+        gcc \
+        g++ \
+        make \
+        cmake \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/tmp/* \
+    && rm -rf /tmp/*
+
+COPY --from=cann-installer /usr/local/python3.11.4 /usr/local/python3.11.4
+COPY --from=cann-installer /usr/local/Ascend /usr/local/Ascend
+COPY --from=cann-installer /etc/Ascend /etc/Ascend
+
+RUN buildDeps='gcc g++ make vim curl zip net-tools iputils-ping iproute2 git openssh-server tcl patch libnuma-dev flex autoconf automake libtool libssl-dev zlib1g-dev libffi-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev tk-dev liblzma-dev python3-openssl' \
+    && apt-get update \
+    && apt-get install -y $buildDeps \
+    && git config --global http.sslverify false \
+    && echo "check_certificate = off" >> ~/.wgetrc \
+    && apt-get clean
+
+# pip install process
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
+    && pip config set install.trusted-host mirrors.aliyun.com \
+    && pip install sympy \
+    && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl \
+    && pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl \
+    && pip install https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.6.0/MindSpore/unified/aarch64/mindspore-2.6.0-cp311-cp311-linux_aarch64.whl --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
+
+WORKDIR /home/work
+RUN git clone -b r1.5.0 https://gitee.com/mindspore/mindformers.git \
+    && cd mindformers \
+    && git show \
+    && sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh \
+    && bash build.sh \
+    && pip install pybind11 \
+    && cd mindformers/dataset/blended_datasets \
+    && make && rm -rf ~/.cache/pip
+
+ARG LOCAL_ASCEND=/usr/local/Ascend
+RUN echo "export GLOG_v=2" >> /root/.bashrc \
+    && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
+#   && echo "source ${LOCAL_ASCEND}/mindie/set_env.sh" >> /root/.bashrc \
+#   && echo "export MINDIE_LLM_FRAMEWORK_BACKEND=MS" >> /root/.bashrc \
+    && echo "echo ''" >> /root/.bashrc \
+    && echo "echo '   _____  .__            .______________                                       '" >> /root/.bashrc \
+    && echo "echo '  /     \ |__| ____    __| _/\_   _____/__________  _____   ___________  ______'" >> /root/.bashrc \
+    && echo "echo ' /  \ /  \|  |/    \  / __ |  |    __)/  _ \_  __ \/     \_/ __ \_  __ \/  ___/'" >> /root/.bashrc \
+    && echo "echo '/    Y    \  |   |  \/ /_/ |  |     \(  <_> )  | \/  Y Y  \  ___/|  | \/\___ \ '" >> /root/.bashrc \
+    && echo "echo ' \____|__  /__|___|  /\____ |  \___  / \____/|__|  |__|_|  /\___  >__|  /____  >'" >> /root/.bashrc \
+    && echo "echo '        \/        \/      \/      \/                    \/     \/           \/ '" >> /root/.bashrc \
+    && echo "echo ''" >> /root/.bashrc
+
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' > /etc/timezone
+# 设置语言环境
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8
