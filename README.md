@@ -5,5 +5,7 @@
 # 构建镜像
 
 ```bash
-docker build --network host -t mindformers-dev-mindspore-2.5.0-910b-py3.10:20250428 --build-arg TARGETPLATFORM=linux/arm64 -f Dockerfile.py311.new .
+git clone https://gitee.com/jimmyisme/mindformers-dockerfile.git
+cd mindformers-dockerfile
+docker build --network host -t mindformers-r1.5.0-mindspore-2.6.0.rc1-py3.11:20250609 --build-arg TARGETPLATFORM=linux/arm64 -f Dockerfile.r1.5.0 .
 ```
