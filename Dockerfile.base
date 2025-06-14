@@ -1,38 +1,35 @@
 # Stage 1: Install Python
 FROM ubuntu:24.04 AS python-installer
 
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    apt-transport-https \
+    ca-certificates \
+    bash \
+    curl \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libncurses5-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libffi-dev \
+    libnss3-dev \
+    libgdbm-dev \
+    liblzma-dev \
+    libev-dev \
+    wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin
+
+WORKDIR /tmp
+
 ARG PYTHON_VERSION
 # 计算短版本号（例如 3.11 或 3.9）
 RUN PYTHON_SHORT_VERSION=$(echo ${PYTHON_VERSION} | awk -F. '{print $1"."$2}') && \
     echo "PYTHON_SHORT_VERSION=${PYTHON_SHORT_VERSION}" >> /etc/environment
 ENV PATH=/usr/local/python${PYTHON_VERSION}/bin:${PATH}
-
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-        apt-transport-https \
-        ca-certificates \
-        bash \
-        curl \
-        build-essential \
-        libssl-dev \
-        zlib1g-dev \
-        libncurses5-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        libffi-dev \
-        libnss3-dev \
-        libgdbm-dev \
-        liblzma-dev \
-        libev-dev \
-        wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /var/tmp/* \
-    && rm -rf /tmp/* \
-    && rm -rf /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin
-
-WORKDIR /tmp
 
 # Install Python
 RUN wget -q https://repo.huaweicloud.com/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz -O /tmp/Python-${PYTHON_VERSION}.tgz && \
@@ -59,21 +56,21 @@ ARG CANN_KERNELS_URL
 ARG CANN_NNAL_URL
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
-        git \
-        wget \
-        gcc \
-        g++ \
-        make \
-        cmake \
-        zlib1g \
-        openssl \
-        unzip \
-        pciutils \
-        net-tools \
-        libblas-dev \
-        gfortran \
-        patchelf \
-        libblas3 \
+    git \
+    wget \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    zlib1g \
+    openssl \
+    unzip \
+    pciutils \
+    net-tools \
+    libblas-dev \
+    gfortran \
+    patchelf \
+    libblas3 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -81,7 +78,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN wget ${CANN_TOOLKIT_URL} -O ~/Ascend-cann-toolkit.run && \
     wget ${CANN_KERNELS_URL} -O ~/Ascend-cann-kernels.run && \
     if [ -n "${CANN_NNAL_URL}" ]; then \
-        wget ${CANN_NNAL_URL} -O ~/Ascend-cann-nnal.run; \
+    wget ${CANN_NNAL_URL} -O ~/Ascend-cann-nnal.run; \
     fi
 
 # Note: Install CANN Toolkit Development Kit Package
@@ -96,10 +93,10 @@ RUN chmod +x ~/Ascend-cann-kernels.run && \
 
 # Note: Install CANN NNAL Neural Network Acceleration Library if CANN_NNAL_URL is provided
 RUN if [ -n "${CANN_NNAL_URL}" ]; then \
-        . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
-        chmod +x ~/Ascend-cann-nnal.run && \
-        ~/Ascend-cann-nnal.run --quiet --install --install-for-all && \
-        rm -f ~/Ascend-cann-nnal.run; \
+    . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
+    chmod +x ~/Ascend-cann-nnal.run && \
+    ~/Ascend-cann-nnal.run --quiet --install --install-for-all && \
+    rm -f ~/Ascend-cann-nnal.run; \
     fi
 
 # Stage 3: Copy results from previous stages
@@ -127,82 +124,80 @@ ENV ASCEND_HOME_PATH=${ASCEND_TOOLKIT_HOME}
 # Note: NNAL Environment variables, only set if CANN_NNAL_URL is provided
 ARG CANN_NNAL_URL
 RUN if [ -n "${CANN_NNAL_URL}" ]; then \
-        echo "export ATB_HOME_PATH=/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1" >> /root/.bashrc && \
-        echo "export LD_LIBRARY_PATH=\${ATB_HOME_PATH}/lib:\${ATB_HOME_PATH}/examples:\${ATB_HOME_PATH}/tests/atbopstest:\${LD_LIBRARY_PATH}" >> /root/.bashrc && \
-        echo "export PATH=\${ATB_HOME_PATH}/bin:\${PATH}" >> /root/.bashrc && \
-        echo "export ATB_STREAM_SYNC_EVERY_KERNEL_ENABLE=0" >> /root/.bashrc && \
-        echo "export ATB_STREAM_SYNC_EVERY_RUNNER_ENABLE=0" >> /root/.bashrc && \
-        echo "export ATB_STREAM_SYNC_EVERY_OPERATION_ENABLE=0" >> /root/.bashrc && \
-        echo "export ATB_OPSRUNNER_SETUP_CACHE_ENABLE=1" >> /root/.bashrc && \
-        echo "export ATB_OPSRUNNER_KERNEL_CACHE_TYPE=3" >> /root/.bashrc && \
-        echo "export ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT=1" >> /root/.bashrc && \
-        echo "export ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT=5" >> /root/.bashrc && \
-        echo "export ATB_OPSRUNNER_KERNEL_CACHE_TILING_SIZE=10240" >> /root/.bashrc && \
-        echo "export ATB_WORKSPACE_MEM_ALLOC_ALG_TYPE=1" >> /root/.bashrc && \
-        echo "export ATB_WORKSPACE_MEM_ALLOC_GLOBAL=0" >> /root/.bashrc && \
-        echo "export ATB_COMPARE_TILING_EVERY_KERNEL=0" >> /root/.bashrc && \
-        echo "export ATB_HOST_TILING_BUFFER_BLOCK_NUM=128" >> /root/.bashrc && \
-        echo "export ATB_DEVICE_TILING_BUFFER_BLOCK_NUM=32" >> /root/.bashrc && \
-        echo "export ATB_SHARE_MEMORY_NAME_SUFFIX=" >> /root/.bashrc && \
-        echo "export ATB_LAUNCH_KERNEL_WITH_TILING=1" >> /root/.bashrc && \
-        echo "export ATB_MATMUL_SHUFFLE_K_ENABLE=1" >> /root/.bashrc && \
-        echo "export ATB_RUNNER_POOL_SIZE=64" >> /root/.bashrc && \
-        echo "export ASDOPS_HOME_PATH=\${ATB_HOME_PATH}" >> /root/.bashrc && \
-        echo "export ASDOPS_MATMUL_PP_FLAG=1" >> /root/.bashrc && \
-        echo "export ASDOPS_LOG_LEVEL=ERROR" >> /root/.bashrc && \
-        echo "export ASDOPS_LOG_TO_STDOUT=0" >> /root/.bashrc && \
-        echo "export ASDOPS_LOG_TO_FILE=1" >> /root/.bashrc && \
-        echo "export ASDOPS_LOG_TO_FILE_FLUSH=0" >> /root/.bashrc && \
-        echo "export ASDOPS_LOG_TO_BOOST_TYPE=atb" >> /root/.bashrc && \
-        echo "export ASDOPS_LOG_PATH=/root" >> /root/.bashrc && \
-        echo "export ASDOPS_TILING_PARSE_CACHE_DISABLE=0" >> /root/.bashrc && \
-        echo "export LCCL_DETERMINISTIC=0" >> /root/.bashrc; \
+    echo "export ATB_HOME_PATH=/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1" >> /root/.bashrc && \
+    echo "export LD_LIBRARY_PATH=\${ATB_HOME_PATH}/lib:\${ATB_HOME_PATH}/examples:\${ATB_HOME_PATH}/tests/atbopstest:\${LD_LIBRARY_PATH}" >> /root/.bashrc && \
+    echo "export PATH=\${ATB_HOME_PATH}/bin:\${PATH}" >> /root/.bashrc && \
+    echo "export ATB_STREAM_SYNC_EVERY_KERNEL_ENABLE=0" >> /root/.bashrc && \
+    echo "export ATB_STREAM_SYNC_EVERY_RUNNER_ENABLE=0" >> /root/.bashrc && \
+    echo "export ATB_STREAM_SYNC_EVERY_OPERATION_ENABLE=0" >> /root/.bashrc && \
+    echo "export ATB_OPSRUNNER_SETUP_CACHE_ENABLE=1" >> /root/.bashrc && \
+    echo "export ATB_OPSRUNNER_KERNEL_CACHE_TYPE=3" >> /root/.bashrc && \
+    echo "export ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT=1" >> /root/.bashrc && \
+    echo "export ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT=5" >> /root/.bashrc && \
+    echo "export ATB_OPSRUNNER_KERNEL_CACHE_TILING_SIZE=10240" >> /root/.bashrc && \
+    echo "export ATB_WORKSPACE_MEM_ALLOC_ALG_TYPE=1" >> /root/.bashrc && \
+    echo "export ATB_WORKSPACE_MEM_ALLOC_GLOBAL=0" >> /root/.bashrc && \
+    echo "export ATB_COMPARE_TILING_EVERY_KERNEL=0" >> /root/.bashrc && \
+    echo "export ATB_HOST_TILING_BUFFER_BLOCK_NUM=128" >> /root/.bashrc && \
+    echo "export ATB_DEVICE_TILING_BUFFER_BLOCK_NUM=32" >> /root/.bashrc && \
+    echo "export ATB_SHARE_MEMORY_NAME_SUFFIX=" >> /root/.bashrc && \
+    echo "export ATB_LAUNCH_KERNEL_WITH_TILING=1" >> /root/.bashrc && \
+    echo "export ATB_MATMUL_SHUFFLE_K_ENABLE=1" >> /root/.bashrc && \
+    echo "export ATB_RUNNER_POOL_SIZE=64" >> /root/.bashrc && \
+    echo "export ASDOPS_HOME_PATH=\${ATB_HOME_PATH}" >> /root/.bashrc && \
+    echo "export ASDOPS_MATMUL_PP_FLAG=1" >> /root/.bashrc && \
+    echo "export ASDOPS_LOG_LEVEL=ERROR" >> /root/.bashrc && \
+    echo "export ASDOPS_LOG_TO_STDOUT=0" >> /root/.bashrc && \
+    echo "export ASDOPS_LOG_TO_FILE=1" >> /root/.bashrc && \
+    echo "export ASDOPS_LOG_TO_FILE_FLUSH=0" >> /root/.bashrc && \
+    echo "export ASDOPS_LOG_TO_BOOST_TYPE=atb" >> /root/.bashrc && \
+    echo "export ASDOPS_LOG_PATH=/root" >> /root/.bashrc && \
+    echo "export ASDOPS_TILING_PARSE_CACHE_DISABLE=0" >> /root/.bashrc && \
+    echo "export LCCL_DETERMINISTIC=0" >> /root/.bashrc; \
     fi
 
 SHELL [ "/bin/bash", "-c" ]
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-        apt-transport-https \
-        ca-certificates \
-        bash \
-        libc6 \
-        libsqlite3-dev \
-        gcc \
-        g++ \
-        make \
-        cmake \
-        libncurses5-dev \
-        vim \
-        curl \
-        zip \
-        net-tools \
-        iputils-ping \
-        iproute2 \
-        git \
-        openssh-server \
-        tcl \
-        patch \
-        libnuma-dev \
-        flex \
-        autoconf \
-        automake \
-        libtool \
-        libssl-dev \
-        zlib1g-dev \
-        libffi-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libncursesw5-dev \
-        tk-dev \
-        liblzma-dev \
-        python3-openssl \
+    apt-transport-https \
+    ca-certificates \
+    bash \
+    libc6 \
+    libsqlite3-dev \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    libncurses5-dev \
+    vim \
+    curl \
+    zip \
+    net-tools \
+    iputils-ping \
+    iproute2 \
+    git \
+    openssh-server \
+    tcl \
+    patch \
+    libnuma-dev \
+    flex \
+    autoconf \
+    automake \
+    libtool \
+    libssl-dev \
+    zlib1g-dev \
+    libffi-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libncursesw5-dev \
+    tk-dev \
+    liblzma-dev \
+    python3-openssl \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /var/tmp/* \
+    && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* \
     && git config --global http.sslverify false \
-    && echo "check_certificate = off" >> ~/.wgetrc \
-    && rm -rf /tmp/*
+    && echo "check_certificate = off" >> ~/.wgetrc
 
 COPY --from=cann-installer /usr/local/python${PYTHON_VERSION} /usr/local/python${PYTHON_VERSION}
 COPY --from=cann-installer /usr/local/Ascend /usr/local/Ascend
@@ -218,26 +213,33 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple \
     && pip install ${MS_WHL_URL} --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
 
 WORKDIR /home/work
-RUN git clone -b r1.5.0 https://gitee.com/mindspore/mindformers.git \
-    && cd mindformers \
-    && git show \
-    && sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh \
-    && bash build.sh \
-    && pip install pybind11 \
-    && cd mindformers/dataset/blended_datasets \
-    && make && rm -rf ~/.cache/pip
+ARG MINDFORMERS_GIT_REF
+RUN git clone https://gitee.com/mindspore/mindformers.git && \
+    cd mindformers && \
+    if echo "${MINDFORMERS_GIT_REF}" | grep -qE '^[0-9a-f]{7,40}$'; then \
+    git checkout ${MINDFORMERS_GIT_REF} || (echo "无效的 commit ID: ${MINDFORMERS_GIT_REF}" && exit 1); \
+    else \
+    git checkout ${MINDFORMERS_GIT_REF} || (echo "无效的分支: ${MINDFORMERS_GIT_REF}" && exit 1); \
+    fi && \
+    git show && \
+    sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
+    bash build.sh && \
+    pip install pybind11 && \
+    cd mindformers/dataset/blended_datasets && \
+    make && rm -rf ~/.cache/pip
 
 ARG LOCAL_ASCEND=/usr/local/Ascend
 RUN echo "export GLOG_v=2" >> /root/.bashrc \
     && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
     && echo "echo ''" >> /root/.bashrc \
-    && echo "echo '   _____  .__            .______________                                       '" >> /root/.bashrc \
-    && echo "echo '  /     \ |__| ____    __| _/\_   _____/__________  _____   ___________  ______'" >> /root/.bashrc \
-    && echo "echo ' /  \ /  \|  |/    \  / __ |  |    __)/  _ \_  __ \/     \_/ __ \_  __ \/  ___/'" >> /root/.bashrc \
-    && echo "echo '/    Y    \  |   |  \/ /_/ |  |     \(  <_> )  | \/  Y Y  \  ___/|  | \/\___ \ '" >> /root/.bashrc \
-    && echo "echo ' \____|__  /__|___|  /\____ |  \___  / \____/|__|  |__|_|  /\___  >__|  /____  >'" >> /root/.bashrc \
-    && echo "echo '        \/        \/      \/      \/                    \/     \/           \/ '" >> /root/.bashrc \
-    && echo "echo ''" >> /root/.bashrc
+    && echo $'cat << \'EOF\'\n'\
+    '███╗   ███╗██╗███╗   ██╗██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗██████╗ ███████╗\n'\
+    '████╗ ████║██║████╗  ██║██╔══██╗██╔════╝██╔═══██╗██╔══██╗████╗ ████║██╔════╝██╔══██╗██╔════╝\n'\
+    '██╔████╔██║██║██╔██╗ ██║██║  ██║█████╗  ██║   ██║██████╔╝██╔████╔██║█████╗  ██████╔╝███████╗\n'\
+    '██║╚██╔╝██║██║██║╚██╗██║██║  ██║██╔══╝  ██║   ██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗╚════██║\n'\
+    '██║ ╚═╝ ██║██║██║ ╚████║██████╔╝██║     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗██║  ██║███████║\n'\
+    '╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝\n'\
+    'EOF' >> ~/.bashrc
 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' > /etc/timezone
