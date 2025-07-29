@@ -5,8 +5,6 @@ FROM ubuntu:24.04 AS base
 ARG PYTHON_VERSION=3.11.4
 ARG CANN_TOOLKIT_URL
 ARG CANN_KERNELS_URL
-ARG CANN_TOOLKIT_FILE
-ARG CANN_KERNELS_FILE
 ARG MS_WHL_URL
 ARG MINDFORMERS_GIT_REF
 
@@ -26,27 +24,11 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8
 # ---- Stage 1: Install Python ----
 FROM base AS python-installer
 
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    apt-transport-https \
-    ca-certificates \
-    bash \
-    curl \
-    build-essential \
-    libssl-dev \
-    zlib1g-dev \
-    libncurses5-dev \
-    libbz2-dev \
-    libreadline-dev \
-    libsqlite3-dev \
-    libffi-dev \
-    libnss3-dev \
-    libgdbm-dev \
-    liblzma-dev \
-    libev-dev \
-    wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    apt-transport-https ca-certificates bash curl build-essential \
+    libssl-dev zlib1g-dev libncurses5-dev libbz2-dev libreadline-dev \
+    libsqlite3-dev libffi-dev libnss3-dev libgdbm-dev liblzma-dev \
+    libev-dev wget && apt-get clean && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
 WORKDIR /tmp
 
@@ -75,25 +57,11 @@ RUN wget -q https://repo.huaweicloud.com/python/${PYTHON_VERSION}/Python-${PYTHO
 # ---- Stage 2: Install CANN ----
 FROM python-installer AS cann-installer
 
-ARG CANN_TOOLKIT_FILE=empty.run
-ARG CANN_KERNELS_FILE=empty.run
 ARG CANN_TOOLKIT_URL
 ARG CANN_KERNELS_URL
 
-COPY ${CANN_TOOLKIT_FILE:-empty.run} /tmp/Ascend-cann-toolkit.run
-COPY ${CANN_KERNELS_FILE:-empty.run} /tmp/Ascend-cann-kernels.run
-
-# 删除过小或空的上传文件（小于 1KB），以便触发 URL 下载
-RUN if [ ! -s /tmp/Ascend-cann-toolkit.run ] || [ "$(stat -c%s /tmp/Ascend-cann-toolkit.run)" -lt 1024 ]; then \
-        rm -f /tmp/Ascend-cann-toolkit.run ; \
-    fi && \
-    if [ ! -s /tmp/Ascend-cann-kernels.run ] || [ "$(stat -c%s /tmp/Ascend-cann-kernels.run)" -lt 1024 ]; then \
-        rm -f /tmp/Ascend-cann-kernels.run ; \
-    fi
-
-# 如未提供文件则通过 URL 下载
-RUN bash -c '[ -n "$CANN_TOOLKIT_URL" ] && [ ! -f /tmp/Ascend-cann-toolkit.run ] && wget -q "$CANN_TOOLKIT_URL" -O /tmp/Ascend-cann-toolkit.run || true'
-RUN bash -c '[ -n "$CANN_KERNELS_URL" ] && [ ! -f /tmp/Ascend-cann-kernels.run ] && wget -q "$CANN_KERNELS_URL" -O /tmp/Ascend-cann-kernels.run || true'
+RUN wget -q "$CANN_TOOLKIT_URL" -O /tmp/Ascend-cann-toolkit.run
+RUN wget -q "$CANN_KERNELS_URL" -O /tmp/Ascend-cann-kernels.run
 
 # 安装
 RUN chmod +x /tmp/Ascend-cann-toolkit.run && \
@@ -112,44 +80,12 @@ SHELL [ "/bin/bash", "-c" ]
 RUN PYTHON_SHORT_VERSION=$(echo ${PYTHON_VERSION} | awk -F. '{print $1"."$2}') && \
     echo "PYTHON_SHORT_VERSION=${PYTHON_SHORT_VERSION}" >> /etc/environment
 
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    apt-transport-https \
-    ca-certificates \
-    bash \
-    libc6 \
-    libsqlite3-dev \
-    gcc \
-    g++ \
-    make \
-    cmake \
-    libncurses5-dev \
-    vim \
-    curl \
-    zip \
-    net-tools \
-    iputils-ping \
-    iproute2 \
-    git \
-    openssh-server \
-    tcl \
-    patch \
-    libnuma-dev \
-    flex \
-    autoconf \
-    automake \
-    libtool \
-    libssl-dev \
-    zlib1g-dev \
-    libffi-dev \
-    libbz2-dev \
-    libreadline-dev \
-    libncursesw5-dev \
-    tk-dev \
-    liblzma-dev \
-    python3-openssl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    apt-transport-https ca-certificates bash libc6 libsqlite3-dev gcc g++ make cmake \
+    libncurses5-dev vim curl zip net-tools iputils-ping iproute2 git openssh-server \
+    tcl patch libnuma-dev flex autoconf automake libtool libssl-dev zlib1g-dev \
+    libffi-dev libbz2-dev libreadline-dev libncursesw5-dev tk-dev liblzma-dev \
+    python3-openssl && apt-get clean && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* \
     && git config --global http.sslverify false \
     && echo "check_certificate = off" >> ~/.wgetrc
 
