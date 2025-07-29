@@ -1,0 +1,144 @@
+# ---- Global base & ARGs ----
+FROM ubuntu:24.04 AS base
+
+# 全局参数与环境变量
+ARG PYTHON_VERSION=3.11.4
+ARG CANN_TOOLKIT_URL
+ARG CANN_KERNELS_URL
+ARG MS_WHL_URL
+ARG MINDFORMERS_GIT_REF
+ARG RUN_USER=ma-user
+ARG USER_ID=1000
+ARG GROUP_ID=100
+
+ENV PATH=/usr/local/python${PYTHON_VERSION}/bin:$PATH
+ENV ASCEND_TOOLKIT_HOME=/usr/local/Ascend/ascend-toolkit/latest
+ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/lib64:${ASCEND_TOOLKIT_HOME}/lib64/plugin/opskernel:${ASCEND_TOOLKIT_HOME}/lib64/plugin/nnengine:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe/op_tiling:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/tools/aml/lib64:${ASCEND_TOOLKIT_HOME}/tools/aml/lib64/plugin:$LD_LIBRARY_PATH
+ENV PYTHONPATH=${ASCEND_TOOLKIT_HOME}/python/site-packages:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe:$PYTHONPATH
+ENV PATH=${ASCEND_TOOLKIT_HOME}/bin:${ASCEND_TOOLKIT_HOME}/compiler/ccec_compiler/bin:${ASCEND_TOOLKIT_HOME}/tools/ccec_compiler/bin:$PATH
+ENV ASCEND_AICPU_PATH=${ASCEND_TOOLKIT_HOME}
+ENV ASCEND_OPP_PATH=${ASCEND_TOOLKIT_HOME}/opp
+ENV TOOLCHAIN_HOME=${ASCEND_TOOLKIT_HOME}/toolkit
+ENV ASCEND_HOME_PATH=${ASCEND_TOOLKIT_HOME}
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8
+
+# ---- Stage 1: Install Python ----
+FROM base AS python-installer
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    apt-transport-https ca-certificates bash curl build-essential \
+    libssl-dev zlib1g-dev libncurses5-dev libbz2-dev libreadline-dev \
+    libsqlite3-dev libffi-dev libnss3-dev libgdbm-dev liblzma-dev \
+    libev-dev wget && apt-get clean && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
+
+WORKDIR /tmp
+
+ARG PYTHON_VERSION
+# 计算短版本号（例如 3.11 或 3.9）
+RUN PYTHON_SHORT_VERSION=$(echo ${PYTHON_VERSION} | awk -F. '{print $1"."$2}') && \
+    echo "PYTHON_SHORT_VERSION=${PYTHON_SHORT_VERSION}" >> /etc/environment
+ENV PATH=/usr/local/python${PYTHON_VERSION}/bin:${PATH}
+
+# Install Python
+RUN wget -q https://repo.huaweicloud.com/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz -O /tmp/Python-${PYTHON_VERSION}.tgz && \
+    tar -xf /tmp/Python-${PYTHON_VERSION}.tgz -C /tmp && \
+    cd /tmp/Python-${PYTHON_VERSION} && \
+    mkdir -p /usr/local/python${PYTHON_VERSION}/lib && \
+    ./configure --enable-shared --enable-shared LDFLAGS="-Wl,-rpath /usr/local/python${PYTHON_VERSION}/lib" --prefix=/usr/local/python${PYTHON_VERSION} --enable-optimizations --enable-loadable-sqlite-extensions && \
+    make -j $(nproc) && \
+    make altinstall && \
+    PYTHON_SHORT_VERSION=$(echo ${PYTHON_VERSION} | awk -F. '{print $1"."$2}') && \
+    ln -sf /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_SHORT_VERSION}-config /usr/local/python${PYTHON_VERSION}/bin/python3-config && \
+    ln -sf /usr/local/python${PYTHON_VERSION}/bin/python${PYTHON_SHORT_VERSION} /usr/local/python${PYTHON_VERSION}/bin/python3 && \
+    ln -sf /usr/local/python${PYTHON_VERSION}/bin/pip${PYTHON_SHORT_VERSION} /usr/local/python${PYTHON_VERSION}/bin/pip3 && \
+    ln -sf /usr/local/python${PYTHON_VERSION}/bin/python3 /usr/local/python${PYTHON_VERSION}/bin/python && \
+    ln -sf /usr/local/python${PYTHON_VERSION}/bin/pip3 /usr/local/python${PYTHON_VERSION}/bin/pip && \
+    rm -rf /tmp/*
+
+# ---- Stage 2: Install CANN ----
+FROM python-installer AS cann-installer
+
+ARG CANN_TOOLKIT_URL
+ARG CANN_KERNELS_URL
+
+RUN wget -q "$CANN_TOOLKIT_URL" -O /tmp/Ascend-cann-toolkit.run
+RUN wget -q "$CANN_KERNELS_URL" -O /tmp/Ascend-cann-kernels.run
+
+# 安装
+RUN chmod +x /tmp/Ascend-cann-toolkit.run && \
+    /tmp/Ascend-cann-toolkit.run --quiet --install --install-for-all && \
+    rm -f /tmp/Ascend-cann-toolkit.run
+
+RUN chmod +x /tmp/Ascend-cann-kernels.run && \
+    /tmp/Ascend-cann-kernels.run --quiet --install --install-for-all && \
+    rm -f /tmp/Ascend-cann-kernels.run
+
+# ---- Stage 3: Final Image ----
+FROM base AS final
+
+SHELL [ "/bin/bash", "-c" ]
+
+RUN PYTHON_SHORT_VERSION=$(echo ${PYTHON_VERSION} | awk -F. '{print $1"."$2}') && \
+    echo "PYTHON_SHORT_VERSION=${PYTHON_SHORT_VERSION}" >> /etc/environment
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    apt-transport-https ca-certificates bash libc6 libsqlite3-dev gcc g++ make cmake \
+    libncurses5-dev vim curl zip net-tools iputils-ping iproute2 git openssh-server \
+    tcl patch libnuma-dev flex autoconf automake libtool libssl-dev zlib1g-dev \
+    libffi-dev libbz2-dev libreadline-dev libncursesw5-dev tk-dev liblzma-dev \
+    python3-openssl && apt-get clean && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* \
+    && git config --global http.sslverify false \
+    && echo "check_certificate = off" >> ~/.wgetrc
+
+COPY --from=cann-installer /usr/local/python${PYTHON_VERSION} /usr/local/python${PYTHON_VERSION}
+COPY --from=cann-installer /usr/local/Ascend /usr/local/Ascend
+COPY --from=cann-installer /etc/Ascend /etc/Ascend
+
+RUN groupadd -g ${GROUP_ID} ${RUN_USER} && \
+    useradd  -m -d /home/${RUN_USER} -s /bin/bash -u ${USER_ID} -g ${GROUP_ID} ${RUN_USER} && \
+    # 关键目录交给普通用户读写；Ascend/drivers 常为 root 读 + user 执行即可
+    chown -R ${RUN_USER}:${GROUP_ID} /home/${RUN_USER} /usr/local/python${PYTHON_VERSION} && \
+    # 仅写权限：MindFormers 源码、pip cache 等
+    mkdir -p /opt/work && chown ${RUN_USER}:${GROUP_ID} /opt/work
+
+USER ${RUN_USER}
+WORKDIR /opt/work
+
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
+    pip install sympy && \
+    pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl && \
+    pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl && \
+    pip install ${MS_WHL_URL} --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
+
+WORKDIR /home/work
+RUN git clone https://gitee.com/mindspore/mindformers.git && \
+    cd mindformers && \
+    git checkout ${MINDFORMERS_GIT_REF} || exit 1 && \
+    git show && \
+    sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
+    bash build.sh && \
+    pip install pybind11 && \
+    cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/pip
+
+ARG LOCAL_ASCEND=/usr/local/Ascend
+RUN echo "export GLOG_v=2" >> /root/.bashrc \
+    && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
+    && echo "echo ''" >> /root/.bashrc \
+    && echo $'cat << \'EOF\'\n'\
+    '███╗   ███╗██╗███╗   ██╗██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗██████╗ ███████╗\n'\
+    '████╗ ████║██║████╗  ██║██╔══██╗██╔════╝██╔═══██╗██╔══██╗████╗ ████║██╔════╝██╔══██╗██╔════╝\n'\
+    '██╔████╔██║██║██╔██╗ ██║██║  ██║█████╗  ██║   ██║██████╔╝██╔████╔██║█████╗  ██████╔╝███████╗\n'\
+    '██║╚██╔╝██║██║██║╚██╗██║██║  ██║██╔══╝  ██║   ██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗╚════██║\n'\
+    '██║ ╚═╝ ██║██║██║ ╚████║██████╔╝██║     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗██║  ██║███████║\n'\
+    '╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝\n'\
+    'EOF' >> ~/.bashrc
+
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' > /etc/timezone
+# 设置语言环境
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8
+
+USER ${RUN_USER}
+WORKDIR /opt/work
