@@ -80,14 +80,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     pciutils net-tools libblas-dev gfortran patchelf libblas3 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY ${CANN_TOOLKIT_FILE:-.} /tmp/Ascend-cann-toolkit.run
-COPY ${CANN_KERNELS_FILE:-.} /tmp/Ascend-cann-kernels.run
+COPY ${CANN_TOOLKIT_FILE:-/dev/null} /tmp/Ascend-cann-toolkit.run
+COPY ${CANN_KERNELS_FILE:-/dev/null} /tmp/Ascend-cann-kernels.run
 
-RUN [ -n "${CANN_TOOLKIT_URL}" ] && [ ! -f /tmp/Ascend-cann-toolkit.run ] && \
-    wget ${CANN_TOOLKIT_URL} -O /tmp/Ascend-cann-toolkit.run || true
-
-RUN [ -n "${CANN_KERNELS_URL}" ] && [ ! -f /tmp/Ascend-cann-kernels.run ] && \
-    wget ${CANN_KERNELS_URL} -O /tmp/Ascend-cann-kernels.run || true
+RUN bash -c '[ -n "$CANN_TOOLKIT_URL" ] && [ ! -f /tmp/Ascend-cann-toolkit.run ] && wget "$CANN_TOOLKIT_URL" -O /tmp/Ascend-cann-toolkit.run || true'
+RUN bash -c '[ -n "$CANN_KERNELS_URL" ] && [ ! -f /tmp/Ascend-cann-kernels.run ] && wget "$CANN_KERNELS_URL" -O /tmp/Ascend-cann-kernels.run || true'
 
 RUN chmod +x /tmp/Ascend-cann-toolkit.run && \
     /tmp/Ascend-cann-toolkit.run --quiet --install --install-for-all && \
