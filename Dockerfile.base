@@ -80,8 +80,8 @@ ARG CANN_KERNELS_FILE=empty.run
 ARG CANN_TOOLKIT_URL
 ARG CANN_KERNELS_URL
 
-COPY ${CANN_TOOLKIT_FILE} /tmp/Ascend-cann-toolkit.run
-COPY ${CANN_KERNELS_FILE} /tmp/Ascend-cann-kernels.run
+COPY ${CANN_TOOLKIT_FILE:-empty.run} /tmp/Ascend-cann-toolkit.run
+COPY ${CANN_KERNELS_FILE:-empty.run} /tmp/Ascend-cann-kernels.run
 
 # 删除过小或空的上传文件（小于 1KB），以便触发 URL 下载
 RUN if [ ! -s /tmp/Ascend-cann-toolkit.run ] || [ "$(stat -c%s /tmp/Ascend-cann-toolkit.run)" -lt 1024 ]; then \
