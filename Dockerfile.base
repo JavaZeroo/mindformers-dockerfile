@@ -109,9 +109,8 @@ RUN git clone https://gitee.com/mindspore/mindformers.git && \
     pip install pybind11 && \
     cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/pip
 
-ARG LOCAL_ASCEND=/usr/local/Ascend
 RUN echo "export GLOG_v=2" >> /root/.bashrc \
-    && echo "source ${LOCAL_ASCEND}/ascend-toolkit/set_env.sh" >> /root/.bashrc \
+    && echo "source /usr/local/Ascend/ascend-toolkit/set_env.sh" >> /root/.bashrc \
     && echo "echo ''" >> /root/.bashrc \
     && echo $'cat << \'EOF\'\n'\
     '███╗   ███╗██╗███╗   ██╗██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗██████╗ ███████╗\n'\
