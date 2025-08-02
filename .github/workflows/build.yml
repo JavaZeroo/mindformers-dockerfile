@@ -1,0 +1,58 @@
+name: Build and Push Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Comma-separated image tags to build'
+        required: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          TAGS="${{ github.event.inputs.tags }}"
+          if [ -n "$TAGS" ]; then
+            matrix=$(jq --arg tags "$TAGS" -c '
+              ($tags | split(",") | map(gsub("^\\s+|\\s+$"; ""))) as $sel |
+              to_entries | map(select(.key as $k | $sel | index($k)) | {tag: .key} + .value)
+            ' versions.json)
+          else
+            matrix=$(jq -c 'to_entries | map({tag: .key} + .value)' versions.json)
+          fi
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push image
+        run: |
+          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ matrix.config.tag }}
+          docker buildx build --platform linux/arm64 \
+            -f Dockerfile.base \
+            --build-arg PYTHON_VERSION=${{ matrix.config.PYTHON_VERSION }} \
+            --build-arg CANN_TOOLKIT_URL=${{ matrix.config.CANN_TOOLKIT_URL }} \
+            --build-arg CANN_KERNELS_URL=${{ matrix.config.CANN_KERNELS_URL }} \
+            --build-arg MS_WHL_URL=${{ matrix.config.MS_WHL_URL }} \
+            --build-arg MINDFORMERS_GIT_REF=${{ matrix.config.MINDFORMERS_GIT_REF }} \
+            -t $IMAGE \
+            --push .
