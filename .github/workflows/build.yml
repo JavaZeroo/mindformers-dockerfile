@@ -2,6 +2,10 @@ name: Build and Push Docker Images
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Specify a tag to build. Leave empty to build all'
+        required: false
   push:
     branches: [ work ]
     paths:
@@ -11,18 +15,28 @@ on:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ubuntu-latest
+      architecture: arm64
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - id: set-matrix
         run: |
-          echo "matrix=$(jq -c 'to_entries | map({tag: .key} + .value)' versions.json)" >> $GITHUB_OUTPUT
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -n "$TAG" ]; then
+            MATRIX=$(jq -c --arg TAG "$TAG" 'with_entries(select(.key == $TAG)) | to_entries | map({tag: .key} + .value)' versions.json)
+          else
+            MATRIX=$(jq -c 'to_entries | map({tag: .key} + .value)' versions.json)
+          fi
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   build:
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ubuntu-latest
+      architecture: arm64
     strategy:
       matrix:
         config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
