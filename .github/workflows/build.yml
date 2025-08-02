@@ -1,0 +1,46 @@
+name: Build and Push Docker Images
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ work ]
+    paths:
+      - 'versions.json'
+      - '.github/workflows/build.yml'
+      - 'Dockerfile.base'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          echo "matrix=$(jq -c 'to_entries | map({image: .key} + .value)' versions.json)" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build image
+        run: |
+          docker build -f Dockerfile.base \
+            --build-arg PYTHON_VERSION=${{ matrix.config.PYTHON_VERSION }} \
+            --build-arg CANN_TOOLKIT_URL=${{ matrix.config.CANN_TOOLKIT_URL }} \
+            --build-arg CANN_KERNELS_URL=${{ matrix.config.CANN_KERNELS_URL }} \
+            --build-arg MS_WHL_URL=${{ matrix.config.MS_WHL_URL }} \
+            --build-arg MINDFORMERS_GIT_REF=${{ matrix.config.MINDFORMERS_GIT_REF }} \
+            -t ${{ matrix.config.image }} .
+      - name: Push image
+        run: docker push ${{ matrix.config.image }}
