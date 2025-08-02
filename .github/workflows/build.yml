@@ -15,9 +15,7 @@ on:
 
 jobs:
   prepare:
-    runs-on:
-      group: ubuntu-latest
-      architecture: arm64
+    runs-on: ubuntu-24.04-arm
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -34,9 +32,7 @@ jobs:
 
   build:
     needs: prepare
-    runs-on:
-      group: ubuntu-latest
-      architecture: arm64
+    runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
         config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
