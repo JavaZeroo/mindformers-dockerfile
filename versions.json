@@ -1,0 +1,9 @@
+{
+  "r1.6.0_ms2.7.0-rc1_cann8.2.RC1_py3.11": {
+    "PYTHON_VERSION": "3.11.4",
+    "CANN_TOOLKIT_URL": "https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.2.RC1/Ascend-cann-toolkit_8.2.RC1_linux-aarch64.run",
+    "CANN_KERNELS_URL": "https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.2.RC1/Ascend-cann-kernels-910b_8.2.RC1_linux-aarch64.run",
+    "MS_WHL_URL": "https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.7.0rc1/MindSpore/unified/aarch64/mindspore-2.7.0rc1-cp311-cp311-linux_aarch64.whl",
+    "MINDFORMERS_GIT_REF": "r1.6.0"
+  }
+}
