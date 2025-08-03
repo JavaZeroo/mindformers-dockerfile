@@ -15,7 +15,6 @@
 - `CANN_KERNELS_URL`：CANN Kernels 安装包下载地址
 - `MS_WHL_URL`：MindSpore 轮子包下载地址
 - `MINDFORMERS_GIT_REF`：MindFormers 仓库的 Git 分支或标签
-- `TARGETPLATFORM`：目标平台架构，例如 `linux/arm64`
 
 ## 选择版本并构建
 `versions.json` 列出了可用的版本及其参数，示例：
@@ -38,7 +37,6 @@ git clone https://gitee.com/jimmyisme/mindformers-dockerfile.git
 cd mindformers-dockerfile
 docker build --network host -t mindformers:${VERSION} \
   $(jq -r ".\"${VERSION}\" | to_entries | .[] | \"--build-arg \\(.key)=\\(.value)\"" versions.json) \
-  --build-arg TARGETPLATFORM=linux/arm64 \
   -f Dockerfile.base .
 ```
 
