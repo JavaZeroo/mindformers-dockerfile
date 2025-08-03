@@ -1,0 +1,35 @@
+FROM swr.cn-central-221.ovaijisuan.com/mindformers/mindformers-master-mindspore-0729-py3.11:dev-20250729
+
+USER root
+
+# 1. 卸载 te/hccl
+RUN pip uninstall -y te hccl numpy sympy mindspore pybind11
+
+# 2. 删除原有 UID=1000 的 ubuntu 用户及其 home 目录
+RUN userdel -r ubuntu || true
+
+# 3. 创建 ma-user 用户 (UID=1000, GID=100)
+RUN useradd -m -d /home/ma-user -s /bin/bash -g 100 -u 1000 ma-user
+
+# 4. 切换用户
+USER ma-user
+WORKDIR /home/ma-user
+
+# 5. 安装 te/hccl（本地 wheel 包）
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
+    pip install sympy --force-reinstall && \
+    pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl --force-reinstall  && \
+    pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl --force-reinstall && \
+    pip install https://repo.mindspore.cn/mindspore/mindspore/version/202507/20250729/master_20250729010021_3cf9beee231e2bc92e34c636f189dc4bbf9c2324_newest/unified/aarch64/mindspore-2.7.0-cp311-cp311-linux_aarch64.whl --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
+
+RUN git clone https://gitee.com/mindspore/mindformers.git && \
+    cd mindformers && \
+    git checkout ${MINDFORMERS_GIT_REF} || exit 1 && \
+    git show && \
+    sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
+    bash build.sh && \
+    pip install pybind11 && \
+    cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/pip
+
+
+ENV PATH="/home/ma-user/.local/bin:$PATH"

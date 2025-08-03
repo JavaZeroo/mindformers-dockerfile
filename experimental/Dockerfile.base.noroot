@@ -1,0 +1,181 @@
+# ---- Global base & ARGs ----
+FROM ubuntu:24.04 AS base
+
+SHELL [ "/bin/bash", "-c" ]
+
+# 用户和组的参数
+ARG RUN_USER=ma-user
+ARG RUN_GROUP=ma-group
+ARG USER_ID=1000
+ARG GROUP_ID=100
+
+# Python & CANN 参数
+ARG PYTHON_VERSION=3.11.4
+ARG CANN_TOOLKIT_URL
+ARG CANN_KERNELS_URL
+ARG MS_WHL_URL
+ARG MINDFORMERS_GIT_REF
+
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' > /etc/timezone
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    apt-transport-https \
+    autoconf \
+    automake \
+    bash \
+    build-essential \
+    ca-certificates \
+    cmake \
+    curl \
+    flex \
+    gcc \
+    g++ \
+    git \
+    iproute2 \
+    iputils-ping \
+    libbz2-dev \
+    libc6 \
+    libev-dev \
+    libffi-dev \
+    libgdbm-dev \
+    liblzma-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    libnss3-dev \
+    libnuma-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libssl-dev \
+    make \
+    net-tools \
+    openssh-server \
+    patch \
+    python3-openssl \
+    tcl \
+    tk-dev \
+    vim \
+    wget \
+    zip \
+    zlib1g-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* \
+    && git config --global http.sslverify false \
+    && echo "check_certificate = off" >> ~/.wgetrc
+
+RUN if id -u ${USER_ID} >/dev/null 2>&1; then \
+        userdel -r $(id -nu ${USER_ID}) || true; \
+    fi && \
+    if ! getent group ${GROUP_ID} >/dev/null; then \
+        groupadd -g ${GROUP_ID} ${RUN_GROUP}; \
+    else \
+        groupmod -n ${RUN_GROUP} $(getent group ${GROUP_ID} | cut -d: -f1); \
+    fi && \
+    useradd -m -d /home/${RUN_USER} -s /bin/bash -u ${USER_ID} -g ${GROUP_ID} ${RUN_USER} && \
+    chown -R ${RUN_USER}:${GROUP_ID} /home/${RUN_USER}
+
+USER ${RUN_USER}
+
+# Ascend 环境变量：非 root 安装路径为 $HOME/Ascend
+ENV ASCEND_BASE=$HOME/Ascend
+ENV ASCEND_TOOLKIT_HOME=${ASCEND_BASE}/ascend-toolkit/latest
+ENV ASCEND_OPP_PATH=${ASCEND_TOOLKIT_HOME}/opp
+ENV ASCEND_AICPU_PATH=${ASCEND_TOOLKIT_HOME}
+ENV TOOLCHAIN_HOME=${ASCEND_TOOLKIT_HOME}/toolkit
+ENV ASCEND_HOME_PATH=${ASCEND_TOOLKIT_HOME}
+ENV PATH=${ASCEND_TOOLKIT_HOME}/bin:${ASCEND_TOOLKIT_HOME}/compiler/ccec_compiler/bin:${ASCEND_TOOLKIT_HOME}/tools/ccec_compiler/bin:$PATH
+ENV LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/lib64:${ASCEND_TOOLKIT_HOME}/lib64/plugin/opskernel:${ASCEND_TOOLKIT_HOME}/lib64/plugin/nnengine:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe/op_tiling:${ASCEND_TOOLKIT_HOME}/tools/aml/lib64:${ASCEND_TOOLKIT_HOME}/tools/aml/lib64/plugin:$LD_LIBRARY_PATH
+ENV PYTHONPATH=${ASCEND_TOOLKIT_HOME}/python/site-packages:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe:$PYTHONPATH
+ENV PATH=/home/${RUN_USER}/python${PYTHON_VERSION}/bin:$PATH
+ENV LD_LIBRARY_PATH=/home/${RUN_USER}/python${PYTHON_VERSION}/lib:$LD_LIBRARY_PATH
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8
+
+SHELL ["/bin/bash", "-c"]
+
+RUN echo "export GLOG_v=2" >> ~/.bashrc \
+    && echo "source ${ASCEND_BASE}/ascend-toolkit/set_env.sh" >> ~/.bashrc \
+    && echo "echo ''" >> ~/.bashrc \
+    && echo $'cat << \'EOF\'\n'\
+    '███╗   ███╗██╗███╗   ██╗██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗██████╗ ███████╗\n'\
+    '████╗ ████║██║████╗  ██║██╔══██╗██╔════╝██╔═══██╗██╔══██╗████╗ ████║██╔════╝██╔══██╗██╔════╝\n'\
+    '██╔████╔██║██║██╔██╗ ██║██║  ██║█████╗  ██║   ██║██████╔╝██╔████╔██║█████╗  ██████╔╝███████╗\n'\
+    '██║╚██╔╝██║██║██║╚██╗██║██║  ██║██╔══╝  ██║   ██║██╔══██╗██║╚██╔╝██║██╔══╝  ██╔══██╗╚════██║\n'\
+    '██║ ╚═╝ ██║██║██║ ╚████║██████╔╝██║     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗██║  ██║███████║\n'\
+    '╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝\n'\
+    'EOF' >> ~/.bashrc
+
+
+# ---- Stage 1: Install Python ----
+FROM base AS python-installer
+USER ${RUN_USER}
+WORKDIR /tmp
+ARG PYTHON_VERSION
+RUN wget -q https://repo.huaweicloud.com/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz -O Python.tgz && \
+    tar -xf Python.tgz && cd Python-${PYTHON_VERSION} && \
+    ./configure --enable-shared LDFLAGS="-Wl,-rpath /home/${RUN_USER}/python${PYTHON_VERSION}/lib" \
+        --prefix=$HOME/python${PYTHON_VERSION} --enable-loadable-sqlite-extensions --enable-shared && \
+    make -j $(nproc) && make altinstall && \
+    ln -sf $HOME/python${PYTHON_VERSION}/bin/python${PYTHON_SHORT_VERSION}-config $HOME/python${PYTHON_VERSION}/bin/python3-config && \
+    PYTHON_SHORT_VERSION=$(echo ${PYTHON_VERSION} | awk -F. '{print $1"."$2}') && \
+    ln -sf $HOME/python${PYTHON_VERSION}/bin/python${PYTHON_SHORT_VERSION} $HOME/python${PYTHON_VERSION}/bin/python3 && \
+    ln -sf $HOME/python${PYTHON_VERSION}/bin/pip${PYTHON_SHORT_VERSION} $HOME/python${PYTHON_VERSION}/bin/pip3 && \
+    ln -sf $HOME/python${PYTHON_VERSION}/bin/python3 $HOME/python${PYTHON_VERSION}/bin/python && \
+    ln -sf $HOME/python${PYTHON_VERSION}/bin/pip3 $HOME/python${PYTHON_VERSION}/bin/pip && \
+    rm -rf /tmp/*
+
+
+# ---- Stage 2: Install CANN ----
+FROM python-installer AS cann-installer
+USER ${RUN_USER}
+WORKDIR /tmp
+ARG CANN_TOOLKIT_URL
+ARG CANN_KERNELS_URL
+
+RUN env
+
+RUN python3 --version && pip3 --version && \
+    echo "Python and pip installed successfully."
+
+RUN wget -q "$CANN_TOOLKIT_URL" -O Ascend-cann-toolkit.run && \
+    wget -q "$CANN_KERNELS_URL" -O Ascend-cann-kernels.run && \
+    chmod +x Ascend-cann-toolkit.run Ascend-cann-kernels.run && \
+    ./Ascend-cann-toolkit.run --quiet --install && \
+    ./Ascend-cann-kernels.run --quiet --install && \
+    rm -f *.run
+
+# ---- Stage 3: Final ----
+FROM base AS final
+
+USER ${RUN_USER}
+
+
+ARG RUN_USER=ma-user
+ARG RUN_GROUP=ma-group
+ARG USER_ID=1000
+ARG GROUP_ID=100
+ARG PYTHON_VERSION
+ARG MS_WHL_URL
+ARG MINDFORMERS_GIT_REF
+
+COPY --from=cann-installer --chown=${RUN_USER}:${RUN_GROUP} /home/${RUN_USER}/python${PYTHON_VERSION} /home/${RUN_USER}/python${PYTHON_VERSION}
+COPY --from=cann-installer --chown=${RUN_USER}:${RUN_GROUP} /home/${RUN_USER}/Ascend /home/${RUN_USER}/Ascend
+
+WORKDIR /home/${RUN_USER}
+# 安装 MindSpore 和 MindFormers
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
+    pip install sympy && \
+    pip install $HOME/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl && \
+    pip install $HOME/Ascend/ascend-toolkit/latest/lib64/hccl-*-py3-none-any.whl && \
+    pip install ${MS_WHL_URL} --trusted-host repo.mindspore.cn && \
+    git clone https://gitee.com/mindspore/mindformers.git $HOME/mindformers && \
+    cd mindformers && git checkout ${MINDFORMERS_GIT_REF} && \
+    sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
+    bash build.sh && pip install pybind11 && \
+    cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/pip
+
+
+USER ${RUN_USER}
+
+ENTRYPOINT ["/bin/bash", "-c", "\
+    source $HOME/Ascend/ascend-toolkit/set_env.sh && \
+    exec \"$@\"", "--"]
