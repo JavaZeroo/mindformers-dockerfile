@@ -1,0 +1,51 @@
+name: Build and Push Docker Images (Manual Inputs)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag, e.g. r1.6.0_ms2.7.0_cann8.2rc1_py3.11'
+        required: true
+      PYTHON_VERSION:
+        description: 'Python version, e.g. 3.11'
+        required: true
+      CANN_TOOLKIT_URL:
+        description: 'URL to Ascend CANN Toolkit installer (.run)'
+        required: true
+      CANN_KERNELS_URL:
+        description: 'URL to Ascend CANN Kernels installer (.run)'
+        required: true
+      MS_WHL_URL:
+        description: 'URL to MindSpore wheel (.whl)'
+        required: true
+      MINDFORMERS_GIT_REF:
+        description: 'mindformers git ref (branch/tag/commit), e.g. v1.2.0 or main'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ github.event.inputs.tag }}
+          echo "Building $IMAGE"
+          docker build -f Dockerfile.base \
+            --build-arg PYTHON_VERSION=${{ github.event.inputs.PYTHON_VERSION }} \
+            --build-arg CANN_TOOLKIT_URL='${{ github.event.inputs.CANN_TOOLKIT_URL }}' \
+            --build-arg CANN_KERNELS_URL='${{ github.event.inputs.CANN_KERNELS_URL }}' \
+            --build-arg MS_WHL_URL='${{ github.event.inputs.MS_WHL_URL }}' \
+            --build-arg MINDFORMERS_GIT_REF='${{ github.event.inputs.MINDFORMERS_GIT_REF }}' \
+            -t "$IMAGE" .
+          echo "image=$IMAGE" >> $GITHUB_ENV
+
+      - name: Push image
+        run: docker push ${{ env.image }}
