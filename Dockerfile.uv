@@ -116,6 +116,12 @@ COPY --from=cann-installer /etc/Ascend /etc/Ascend
 # Install uv - the fast Python package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# Create a pip wrapper that uses uv for faster installation
+# This allows build.sh to use pip normally while actually using uv under the hood
+RUN mv /usr/local/python${PYTHON_VERSION}/bin/pip /usr/local/python${PYTHON_VERSION}/bin/pip.original && \
+    printf '#!/bin/bash\nexec uv pip "$@"\n' > /usr/local/python${PYTHON_VERSION}/bin/pip && \
+    chmod +x /usr/local/python${PYTHON_VERSION}/bin/pip
+
 # Install Python packages using uv (much faster than pip!)
 RUN uv pip install sympy && \
     uv pip install /usr/local/Ascend/ascend-toolkit/latest/lib64/te-*-py3-none-any.whl && \
@@ -128,9 +134,8 @@ RUN git clone https://gitee.com/mindspore/mindformers.git && \
     cd mindformers && \
     git checkout ${MINDFORMERS_GIT_REF} || exit 1 && \
     git show && \
-    # Replace pip with uv in build.sh
-    sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|uv pip install mindformers\*whl|g' build.sh && \
-    sed -i 's|pip install|uv pip install|g' build.sh && \
+    # Only fix the mirror URL, pip wrapper handles the rest
+    sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
     bash build.sh && \
     uv pip install pybind11 && \
     cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/uv
