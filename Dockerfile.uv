@@ -134,8 +134,8 @@ RUN git clone https://gitee.com/mindspore/mindformers.git && \
     cd mindformers && \
     git checkout ${MINDFORMERS_GIT_REF} || exit 1 && \
     git show && \
-    # Only fix the mirror URL, pip wrapper handles the rest
-    sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
+    # Pre-install dependencies with uv before running build.sh
+    uv pip install -r requirements.txt && \
     bash build.sh && \
     uv pip install pybind11 && \
     cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/uv
