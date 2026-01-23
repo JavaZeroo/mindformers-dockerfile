@@ -21,6 +21,10 @@ on:
       MINDFORMERS_GIT_REF:
         description: 'mindformers git ref (branch/tag/commit), e.g. v1.2.0 or main'
         required: true
+      DOCKERFILE:
+        description: 'Dockerfile to use'
+        required: false
+        default: 'Dockerfile.base'
 
 jobs:
   build:
@@ -46,7 +50,9 @@ jobs:
           HUB_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ github.event.inputs.tag }}
           SWR_IMAGE=swr.cn-central-221.ovaijisuan.com/${{ secrets.SWR_ORG }}/mindformers:${{ github.event.inputs.tag }}
           echo "Building $HUB_IMAGE"
-          docker build -f Dockerfile.base \
+          DOCKERFILE="${{ github.event.inputs.DOCKERFILE }}"
+          if [ -z "$DOCKERFILE" ]; then DOCKERFILE="Dockerfile.base"; fi
+          docker build -f $DOCKERFILE \
             --build-arg PYTHON_VERSION=${{ github.event.inputs.PYTHON_VERSION }} \
             --build-arg CANN_TOOLKIT_URL='${{ github.event.inputs.CANN_TOOLKIT_URL }}' \
             --build-arg CANN_KERNELS_URL='${{ github.event.inputs.CANN_KERNELS_URL }}' \

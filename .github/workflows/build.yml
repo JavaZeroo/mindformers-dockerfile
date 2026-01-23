@@ -53,7 +53,14 @@ jobs:
         run: |
           HUB_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ matrix.config.tag }}
           SWR_IMAGE=swr.cn-central-221.ovaijisuan.com/${{ secrets.SWR_ORG }}/mindformers:${{ matrix.config.tag }}
-          docker build -f Dockerfile.base \
+          
+          # Determine Dockerfile
+          DOCKERFILE="${{ matrix.config.DOCKERFILE }}"
+          if [ -z "$DOCKERFILE" ] || [ "$DOCKERFILE" == "null" ]; then
+            DOCKERFILE="Dockerfile.base"
+          fi
+          
+          docker build -f $DOCKERFILE \
             --build-arg PYTHON_VERSION=${{ matrix.config.PYTHON_VERSION }} \
             --build-arg CANN_TOOLKIT_URL=${{ matrix.config.CANN_TOOLKIT_URL }} \
             --build-arg CANN_KERNELS_URL=${{ matrix.config.CANN_KERNELS_URL }} \
