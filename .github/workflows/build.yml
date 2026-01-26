@@ -6,6 +6,16 @@ on:
       tag:
         description: 'Specify a tag to build. Leave empty to build all'
         required: false
+      publish:
+        description: 'Push to Docker Hub'
+        type: boolean
+        required: false
+        default: true
+      sync_swr:
+        description: 'Sync image to Huawei SWR'
+        type: boolean
+        required: false
+        default: true
   push:
     branches: [ work ]
     paths:
@@ -38,21 +48,9 @@ jobs:
         config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Log in to Huawei SWR
-        uses: docker/login-action@v3
-        with:
-          registry: swr.cn-central-221.ovaijisuan.com
-          username: ${{ secrets.SWR_USERNAME }}
-          password: ${{ secrets.SWR_PASSWORD }}
       - name: Build image
         run: |
           HUB_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ matrix.config.tag }}
-          SWR_IMAGE=swr.cn-central-221.ovaijisuan.com/${{ secrets.SWR_ORG }}/mindformers:${{ matrix.config.tag }}
           
           # Determine Dockerfile
           DOCKERFILE="${{ matrix.config.DOCKERFILE }}"
@@ -67,10 +65,61 @@ jobs:
             --build-arg MS_WHL_URL=${{ matrix.config.MS_WHL_URL }} \
             --build-arg MINDFORMERS_GIT_REF=${{ matrix.config.MINDFORMERS_GIT_REF }} \
             -t $HUB_IMAGE .
-          docker tag $HUB_IMAGE $SWR_IMAGE
-          echo "hub_image=$HUB_IMAGE" >> $GITHUB_ENV
-          echo "swr_image=$SWR_IMAGE" >> $GITHUB_ENV
-      - name: Push image
+          docker save $HUB_IMAGE -o mindformers-${{ matrix.config.tag }}.tar
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mindformers-${{ matrix.config.tag }}
+          path: mindformers-${{ matrix.config.tag }}.tar
+
+  push:
+    if: ${{ github.event_name == 'push' || inputs.publish }}
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mindformers-${{ matrix.config.tag }}
+      - name: Load image
         run: |
-          docker push ${{ env.hub_image }}
-          docker push ${{ env.swr_image }}
+          docker load -i mindformers-${{ matrix.config.tag }}.tar
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push to Docker Hub
+        run: |
+          HUB_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ matrix.config.tag }}
+          docker push $HUB_IMAGE
+
+  sync:
+    if: ${{ github.event_name == 'push' || inputs.sync_swr }}
+    needs: [prepare, push]
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Log in to Huawei SWR
+        uses: docker/login-action@v3
+        with:
+          registry: swr.cn-central-221.ovaijisuan.com
+          username: ${{ secrets.SWR_USERNAME }}
+          password: ${{ secrets.SWR_PASSWORD }}
+      - name: Sync image to SWR
+        run: |
+          HUB_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ matrix.config.tag }}
+          SWR_IMAGE=swr.cn-central-221.ovaijisuan.com/${{ secrets.SWR_ORG }}/mindformers:${{ matrix.config.tag }}
+          docker pull $HUB_IMAGE
+          docker tag $HUB_IMAGE $SWR_IMAGE
+          docker push $SWR_IMAGE
