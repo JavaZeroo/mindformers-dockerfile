@@ -130,7 +130,7 @@ COPY --from=cann-installer /usr/local/Ascend /usr/local/Ascend
 COPY --from=cann-installer /etc/Ascend /etc/Ascend
 
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
-    pip install sympy && \
+    pip install sympy absl-py cloudpickle ml-dtypes tornado "decorator>=5.1.0" "dill==0.3.8" && \
     pip install ${MS_WHL_URL} --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
 
 WORKDIR /home/work
