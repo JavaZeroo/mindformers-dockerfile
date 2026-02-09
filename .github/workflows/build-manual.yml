@@ -35,7 +35,7 @@ jobs:
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
-          # Keep tool-cache as we don't need cached tools for Docker builds
+          # Don't remove tool-cache as it might affect builds
           tool-cache: false
           
           # all of these default to true, but feel free to set to
