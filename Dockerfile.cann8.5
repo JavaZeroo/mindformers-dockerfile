@@ -134,13 +134,13 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple && \
     pip install ${MS_WHL_URL} --trusted-host repo.mindspore.cn && rm -rf ~/.cache/pip
 
 WORKDIR /home/work
-RUN git clone https://gitee.com/mindspore/mindformers.git && \
+RUN git clone https://gitcode.com/mindspore/mindformers.git && \
     cd mindformers && \
     git checkout ${MINDFORMERS_GIT_REF} || exit 1 && \
     git show && \
     sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
     bash build.sh && \
-    pip install pybind11 && \
+    pip install pybind11 pytest ruff && \
     cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/pip
 
 RUN echo "export GLOG_v=2" >> /root/.bashrc \

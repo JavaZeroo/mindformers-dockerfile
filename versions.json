@@ -31,12 +31,12 @@
     "MS_WHL_URL": "https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.7.1/MindSpore/unified/aarch64/mindspore-2.7.1-cp311-cp311-linux_aarch64.whl",
     "MINDFORMERS_GIT_REF": "r1.7.0"
   },
-  "r1.8.0_ms2.7.1_cann8.5.0_py3.11": {
+  "r1.8.0_ms2.7.2_cann8.5.0_py3.11": {
     "DOCKERFILE": "Dockerfile.cann8.5",
     "PYTHON_VERSION": "3.11.4",
     "CANN_TOOLKIT_URL": "https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.5.0/Ascend-cann-toolkit_8.5.0_linux-aarch64.run",
     "CANN_KERNELS_URL": "https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.5.0/Ascend-cann-910b-ops_8.5.0_linux-aarch64.run",
-    "MS_WHL_URL": "https://repo.mindspore.cn/mindspore/mindspore/version/202601/20260123/master_20260123010018_09aa7b710c0e65b746e42e66b2e765b4f9d8e6e0_newest/unified/aarch64/mindspore-2.8.0-cp311-cp311-linux_aarch64.whl",
+    "MS_WHL_URL": "https://ms-release.obs.cn-north-4.myhuaweicloud.com/2.7.2/MindSpore/unified/aarch64/mindspore-2.7.2-cp311-cp311-linux_aarch64.whl",
     "MINDFORMERS_GIT_REF": "r1.8.0"
   }
 }
