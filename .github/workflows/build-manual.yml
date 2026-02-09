@@ -32,11 +32,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Free Disk Space (Ubuntu)
+      - name: Free Disk Space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
+          # Keep tool-cache as we don't need cached tools for Docker builds
           tool-cache: false
           
           # all of these default to true, but feel free to set to
