@@ -48,6 +48,30 @@ jobs:
         config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: false
+          
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      
+      - name: Check disk space
+        run: |
+          echo "Disk space after cleanup:"
+          df -h
+          echo "Docker disk usage:"
+          docker system df
+      
       - name: Build image
         run: |
           HUB_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mindformers:${{ matrix.config.tag }}
@@ -65,7 +89,17 @@ jobs:
             --build-arg MS_WHL_URL=${{ matrix.config.MS_WHL_URL }} \
             --build-arg MINDFORMERS_GIT_REF=${{ matrix.config.MINDFORMERS_GIT_REF }} \
             -t $HUB_IMAGE .
+          
+          # Clean up dangling images after build to free space
+          docker image prune -f
+          
+          echo "Disk space before docker save:"
+          df -h
+          
           docker save $HUB_IMAGE -o mindformers-${{ matrix.config.tag }}.tar
+          
+          echo "Disk space after docker save:"
+          df -h
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
