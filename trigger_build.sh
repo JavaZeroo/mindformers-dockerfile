@@ -4,6 +4,9 @@
 
 set -e
 
+# Configuration
+WORKFLOW_STATUS_DELAY=3  # Seconds to wait before fetching workflow status
+
 # Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -108,7 +111,7 @@ if [ $? -eq 0 ]; then
     echo ""
     
     # Wait a moment and try to get the run URL
-    sleep 3
+    sleep $WORKFLOW_STATUS_DELAY
     echo -e "${YELLOW}Fetching workflow run...${NC}"
     gh run list --workflow=build.yml --limit 1
 else
