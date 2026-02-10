@@ -16,18 +16,22 @@
 ./build_image.sh r1.8.0_ms2.7.2_cann8.5.0_py3.11
 ```
 
-### 方式二：使用 GitHub Actions
+### 方式二：使用 GitHub Actions（云端构建）
 
 ```bash
-# 使用 GitHub CLI 触发构建
+# 使用快速触发脚本
+./start_build.sh
+
+# 或使用 GitHub CLI 触发构建
 ./trigger_build.sh r1.8.0_ms2.7.2_cann8.5.0_py3.11
 
 # 或手动访问 Actions 页面
-# https://github.com/JavaZeroo/mindformers-dockerfile/actions
+# https://github.com/JavaZeroo/mindformers-dockerfile/actions/workflows/build.yml
 ```
 
 详细说明请参考：
 - **快速开始**: [QUICKSTART.md](./QUICKSTART.md)
+- **触发 GitHub Actions**: [TRIGGER_GITHUB_ACTIONS.md](./TRIGGER_GITHUB_ACTIONS.md)
 - **完整指南**: [BUILD_r1.8.0_GUIDE.md](./BUILD_r1.8.0_GUIDE.md)
 
 ## 前置条件
