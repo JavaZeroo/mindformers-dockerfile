@@ -151,3 +151,4 @@ docker run --rm -it mindformers:r1.8.0_ms2.7.2_cann8.5.0_py3.11 bash
 ---
 
 **现在就开始构建！** 🚀
+

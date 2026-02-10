@@ -77,7 +77,10 @@ gh auth login
 # 进入仓库目录
 cd /path/to/mindformers-dockerfile
 
-# 运行触发脚本
+# 运行触发脚本（快速版本）
+./start_build.sh
+
+# 或使用完整版本（可配置）
 ./trigger_build.sh r1.8.0_ms2.7.2_cann8.5.0_py3.11
 ```
 
@@ -245,6 +248,7 @@ docker run --rm -it swr.cn-central-221.ovaijisuan.com/<org>/mindformers:r1.8.0_m
 | 方法 | 难度 | 速度 | 推荐场景 |
 |------|------|------|----------|
 | 网页界面 | ⭐ | ⭐⭐⭐ | 一次性构建 |
+| start_build.sh | ⭐ | ⭐⭐⭐⭐ | 快速触发 |
 | trigger_build.sh | ⭐⭐ | ⭐⭐⭐⭐ | 频繁构建 |
 | GitHub CLI | ⭐⭐ | ⭐⭐⭐⭐ | 命令行用户 |
 | API | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 自动化集成 |
@@ -262,3 +266,4 @@ docker run --rm -it swr.cn-central-221.ovaijisuan.com/<org>/mindformers:r1.8.0_m
 ---
 
 **准备好开始构建了吗？访问 [Actions 页面](https://github.com/JavaZeroo/mindformers-dockerfile/actions/workflows/build.yml) 立即开始！** 🚀
+
