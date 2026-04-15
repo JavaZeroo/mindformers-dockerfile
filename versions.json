@@ -46,5 +46,5 @@
     "CANN_KERNELS_URL": "https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%209.0.T511/Ascend-cann-toolkit_9.0.0-beta.2_linux-aarch64.run",
     "MS_WHL_URL": "https://repo.mindspore.cn/mindspore/mindspore/version/202604/20260415/master_20260415010020_c0bfa666c9a93df3b9f20edc0d318d12133e2458_newest/unified/aarch64/mindspore-2.9.0-cp311-cp311-linux_aarch64.whl",
     "MINDFORMERS_GIT_REF": "master"
-  },
+  }
 }
