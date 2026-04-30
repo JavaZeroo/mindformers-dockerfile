@@ -4,10 +4,45 @@
 该仓库提供用于构建 MindFormers 训练环境的 Dockerfile 和版本配置，
 可以在 Ascend 平台上快速搭建包含指定 MindSpore、CANN 及 Python 版本的镜像。
 
+## 快速开始
+
+### 方式一：使用自动构建脚本（推荐）
+
+```bash
+# 查看可用版本
+./build_image.sh
+
+# 构建指定版本
+./build_image.sh r1.8.0_ms2.7.2_cann8.5.0_py3.11
+```
+
+### 方式二：使用 GitHub Actions（云端构建）⭐
+
+**网页触发（最简单）**:
+- 访问 [Actions 页面](https://github.com/JavaZeroo/mindformers-dockerfile/actions/workflows/build.yml)
+- 点击 "Run workflow"，填写参数
+- 查看 [网页触发详细指南](./WEB_TRIGGER_GUIDE.md)
+
+**命令行触发**:
+```bash
+# 使用快速触发脚本
+./start_build.sh
+
+# 或使用 GitHub CLI 触发构建
+./trigger_build.sh r1.8.0_ms2.7.2_cann8.5.0_py3.11
+```
+
+详细说明请参考：
+- **网页触发指南**: [WEB_TRIGGER_GUIDE.md](./WEB_TRIGGER_GUIDE.md) ⭐ 推荐
+- **快速开始**: [QUICKSTART.md](./QUICKSTART.md)
+- **触发 GitHub Actions**: [TRIGGER_GITHUB_ACTIONS.md](./TRIGGER_GITHUB_ACTIONS.md)
+- **完整指南**: [BUILD_r1.8.0_GUIDE.md](./BUILD_r1.8.0_GUIDE.md)
+
 ## 前置条件
 - 已安装 Docker（推荐版本 `Docker version 26.1.4, build 5650f9b`）
 - 可访问华为云/Ascend 软件源以下载 CANN、MindSpore 等依赖
 - 已安装 `curl`、`jq` 等工具
+- 至少 30GB 可用磁盘空间
 
 ## 参数说明
 - `PYTHON_VERSION`：镜像中安装的 Python 版本
