@@ -32,7 +32,7 @@
     "MINDFORMERS_GIT_REF": "r1.7.0"
   },
   "r1.8.0_ms2.7.2_cann8.5.0_py3.11": {
-    "DOCKERFILE": "Dockerfile.cann8.5",
+    "DOCKERFILE": "Dockerfile",
     "PYTHON_VERSION": "3.11.4",
     "CANN_TOOLKIT_URL": "https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.5.0/Ascend-cann-toolkit_8.5.0_linux-aarch64.run",
     "CANN_KERNELS_URL": "https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%208.5.0/Ascend-cann-910b-ops_8.5.0_linux-aarch64.run",

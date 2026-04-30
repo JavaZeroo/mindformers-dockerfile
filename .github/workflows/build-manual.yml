@@ -24,7 +24,7 @@ on:
       DOCKERFILE:
         description: 'Dockerfile to use'
         required: false
-        default: 'Dockerfile.base'
+        default: 'Dockerfile'
 
 jobs:
   build:
@@ -51,7 +51,7 @@ jobs:
           SWR_IMAGE=swr.cn-central-221.ovaijisuan.com/${{ secrets.SWR_ORG }}/mindformers:${{ github.event.inputs.tag }}
           echo "Building $HUB_IMAGE"
           DOCKERFILE="${{ github.event.inputs.DOCKERFILE }}"
-          if [ -z "$DOCKERFILE" ]; then DOCKERFILE="Dockerfile.base"; fi
+          if [ -z "$DOCKERFILE" ]; then DOCKERFILE="Dockerfile"; fi
           docker build -f $DOCKERFILE \
             --build-arg PYTHON_VERSION=${{ github.event.inputs.PYTHON_VERSION }} \
             --build-arg CANN_TOOLKIT_URL='${{ github.event.inputs.CANN_TOOLKIT_URL }}' \

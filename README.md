@@ -30,14 +30,14 @@ jq -r 'keys[]' versions.json
 VERSION=r1.6.0_ms2.7.0-rc1_cann8.2.RC1_py3.11
 ```
 
-构建镜像时将配置项作为 `--build-arg` 传入：
+构建镜像时将配置项作为 `--build-arg` 传入，并使用版本配置文件中指定的 Dockerfile：
 
 ```bash
 git clone https://gitee.com/jimmyisme/mindformers-dockerfile.git
 cd mindformers-dockerfile
 docker build --network host -t mindformers:${VERSION} \
   $(jq -r ".\"${VERSION}\" | to_entries | .[] | \"--build-arg \\(.key)=\\(.value)\"" versions.json) \
-  -f Dockerfile.base .
+  -f $(jq -r ".\"${VERSION}\".DOCKERFILE" versions.json) .
 ```
 
 ## 运行示例
@@ -46,3 +46,4 @@ docker build --network host -t mindformers:${VERSION} \
 docker run --rm -it mindformers:${VERSION} bash
 ```
 
+> 当前项目主力 Dockerfile 为 `Dockerfile`，当版本配置中指定 CANN 8.5 及以上时会自动使用该文件。旧版 CANN 8.2/8.3 等仍可继续使用 `Dockerfile.base`。

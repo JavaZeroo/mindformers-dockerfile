@@ -21,7 +21,7 @@ on:
     paths:
       - 'versions.json'
       - '.github/workflows/build.yml'
-      - 'Dockerfile.base'
+      - 'Dockerfile.*'
 
 jobs:
   prepare:
@@ -55,7 +55,7 @@ jobs:
           # Determine Dockerfile
           DOCKERFILE="${{ matrix.config.DOCKERFILE }}"
           if [ -z "$DOCKERFILE" ] || [ "$DOCKERFILE" == "null" ]; then
-            DOCKERFILE="Dockerfile.base"
+            DOCKERFILE="Dockerfile"
           fi
           
           docker build -f $DOCKERFILE \
