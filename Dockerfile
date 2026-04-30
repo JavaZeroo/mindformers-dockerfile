@@ -141,7 +141,12 @@ RUN git clone https://gitcode.com/mindspore/mindformers.git && \
     sed -i 's|pip install mindformers\*whl -i https://pypi.tuna.tsinghua.edu.cn/simple|pip install mindformers\*whl|g' build.sh && \
     bash build.sh && \
     pip install pybind11 pytest ruff && \
-    cd mindformers/dataset/blended_datasets && make && rm -rf ~/.cache/pip
+    cd mindformers/dataset/blended_datasets && make && \
+    cd /home/work && \
+    git clone https://gitcode.com/mindspore/hyper-parallel.git && \
+    cd hyper-parallel && \
+    pip install -e . && \
+    rm -rf ~/.cache/pip
 
 RUN echo "export GLOG_v=2" >> /root/.bashrc \
     && echo "source /usr/local/Ascend/ascend-toolkit/set_env.sh" >> /root/.bashrc \
